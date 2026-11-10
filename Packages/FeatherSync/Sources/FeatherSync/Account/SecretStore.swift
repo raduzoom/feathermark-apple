@@ -7,7 +7,8 @@ public protocol SecretStore: Sendable {
     func setToken(_ token: String?, for account: String) throws
 }
 
-/// The session token as a generic password, on this Mac only (never synced through iCloud Keychain).
+/// The session token as a generic password, on this device only (never synced through iCloud Keychain).
+/// Like `KeychainMasterKeyStore`: the data protection keychain on iOS, the file-based one on macOS until Phase 10.
 public struct KeychainSecretStore: SecretStore {
     public let service: String
 

@@ -1,3 +1,5 @@
+// Two-device tests drive the local server and read its log with Process: macOS only.
+#if os(macOS)
 import FeatherCore
 import FeatherCrypto
 import Foundation
@@ -181,3 +183,4 @@ import Testing
         #expect(try await a.library.note(id)?.body == "offline edit")
     }
 }
+#endif

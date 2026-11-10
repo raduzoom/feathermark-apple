@@ -1,3 +1,5 @@
+// Runs the fncore binary with Process, which exists only on macOS.
+#if os(macOS)
 import Foundation
 import Testing
 @testable import FeatherCore
@@ -107,3 +109,4 @@ func runFncore(_ args: [String], stdin: String = "") throws -> RunResult {
     #expect(try await lib.notebooks().isEmpty)
     #expect(try await lib.scalar("PRAGMA integrity_check") == "ok")
 }
+#endif

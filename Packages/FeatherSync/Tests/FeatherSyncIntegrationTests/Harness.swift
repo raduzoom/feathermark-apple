@@ -1,3 +1,5 @@
+// Two-device tests drive the local server and read its log with Process: macOS only.
+#if os(macOS)
 import FeatherCore
 import FeatherCrypto
 import Foundation
@@ -10,7 +12,7 @@ enum Harness {
     static let setup = "Start the server: FEATHER_TRUST_PROXY=true FEATHER_BILLING=on docker compose -f ../server/deploy/docker-compose.yml up -d --build --wait, then set FEATHER_SYNC_SERVER=http://127.0.0.1:8420"
     static let compose: URL = {
         var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<6 { url.deleteLastPathComponent() }   // Harness.swift … mac
+        for _ in 0..<6 { url.deleteLastPathComponent() }   // Harness.swift … apple
         return url.appending(path: "server/deploy/docker-compose.yml")
     }()
 
@@ -108,3 +110,4 @@ final class TestDevice: @unchecked Sendable {
         return out.sorted { $0.title < $1.title }
     }
 }
+#endif

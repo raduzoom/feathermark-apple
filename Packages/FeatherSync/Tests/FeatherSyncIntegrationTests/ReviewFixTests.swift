@@ -1,3 +1,5 @@
+// Two-device tests drive the local server and read its log with Process: macOS only.
+#if os(macOS)
 import FeatherCore
 import FeatherCrypto
 import Foundation
@@ -153,3 +155,4 @@ final class Flag: @unchecked Sendable {
         }
     }
 }
+#endif

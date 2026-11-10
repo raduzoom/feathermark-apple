@@ -1,19 +1,19 @@
 import Foundation
 
-/// The crypto test vectors in the universal repo, checked out next to `mac` (or `FEATHER_TEST_VECTORS`).
+/// The crypto test vectors in the universal repo, checked out next to `apple` (or `FEATHER_TEST_VECTORS`).
 /// A missing folder fails the tests: they must never pass without the vectors.
 enum Vectors {
     struct Missing: Error, CustomStringConvertible {
         let path: String
         var description: String {
-            "Test vectors not found at \(path). Check out feather-note-universal next to mac, or set FEATHER_TEST_VECTORS."
+            "Test vectors not found at \(path). Check out feather-note-universal next to apple, or set FEATHER_TEST_VECTORS."
         }
     }
 
     static var folder: URL {
         if let path = ProcessInfo.processInfo.environment["FEATHER_TEST_VECTORS"] { return URL(fileURLWithPath: path) }
         var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<6 { url.deleteLastPathComponent() }   // Vectors.swift, FeatherCryptoTests, Tests, FeatherCrypto, Packages, mac
+        for _ in 0..<6 { url.deleteLastPathComponent() }   // Vectors.swift, FeatherCryptoTests, Tests, FeatherCrypto, Packages, apple
         return url.appending(path: "universal/test-vectors")
     }
 

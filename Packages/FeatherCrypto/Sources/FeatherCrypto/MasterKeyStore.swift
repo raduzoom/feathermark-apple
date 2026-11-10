@@ -12,10 +12,11 @@ public enum KeychainError: Error, Equatable, Sendable {
     case status(OSStatus)
 }
 
-/// The master key as a generic password, on this Mac only (never synced through iCloud Keychain).
+/// The master key as a generic password, on this device only (never synced through iCloud Keychain).
 ///
-/// TODO(phase-10): add `kSecUseDataProtectionKeychain` once the app is signed with a Developer ID; it needs a
-/// keychain-access-groups entitlement that ad-hoc signing can't grant.
+/// iOS has only the data protection keychain. On macOS this is still the file-based keychain:
+/// TODO(phase-10): add `kSecUseDataProtectionKeychain` on macOS once the app is signed with a Developer ID; it needs a
+/// keychain-access-groups entitlement that ad-hoc signing can't grant (an ad-hoc process gets errSecMissingEntitlement).
 public struct KeychainMasterKeyStore: MasterKeyStore {
     public let service: String
 

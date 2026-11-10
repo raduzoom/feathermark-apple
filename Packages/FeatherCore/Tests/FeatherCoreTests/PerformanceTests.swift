@@ -28,7 +28,18 @@ private func seconds(_ d: Duration) -> Double {
     Double(d.components.seconds) + Double(d.components.attoseconds) / 1e18
 }
 
-@Test(.timeLimit(.minutes(5))) func searchUnder50msOn10kNotes() async throws {
+/// The budget is the Mac's (release build). The iOS simulator says nothing about an iPhone's speed; iOS budgets
+/// are measured on a device (iPhone spec, "Performance").
+private let onMac: Bool = {
+    #if os(macOS)
+    true
+    #else
+    false
+    #endif
+}()
+
+@Test(.timeLimit(.minutes(5)), .enabled(if: onMac, "the search budget is the Mac's; iOS is measured on a device"))
+func searchUnder50msOn10kNotes() async throws {
     let lib = try TestLibrary.open()
     var rng = SplitMix64(state: 42)
     var notebooks: [ULID] = []
