@@ -83,7 +83,7 @@ extension EditorCommands {
 
     /// Where an image, file or scan goes: the line itself once the trigger is removed and nothing but markers
     /// is left (the edit then clears the line), otherwise the line's end. `location` is in the text after `edit`.
-    static func mediaInsertionPoint(text: String, caret: Int, removing trigger: NSRange?) -> (edit: Edit?, location: Int) {
+    public static func mediaInsertionPoint(text: String, caret: Int, removing trigger: NSRange?) -> (edit: Edit?, location: Int) {
         let s = text as NSString
         let l = lineWithout(trigger, in: s, caret: caret)
         if splitMarkers(l.text).content.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -121,7 +121,7 @@ extension EditorCommands {
 extension EditorCommands {
     /// Whether a "/" typed at `slashAt` opens the block menu: only where its line's text begins (nothing but
     /// whitespace and block markers before it), never in code or in a block shown as source (HTML, tables).
-    static func slashOpensMenu(text: String, document: MarkdownDocument, slashAt: Int) -> Bool {
+    public static func slashOpensMenu(text: String, document: MarkdownDocument, slashAt: Int) -> Bool {
         let s = text as NSString
         let l = line(s, at: slashAt)
         let before = s.substring(with: NSRange(location: l.range.location, length: slashAt - l.range.location))
@@ -139,7 +139,7 @@ extension EditorCommands {
     /// image: on an empty line (`location` at its start) they replace it; at the end of a line with text
     /// they go below it in its container. Blank lines separate them from text above and below (an image
     /// sharing a paragraph with text is a chip), and every new line uses the line's own ending.
-    static func mediaEdit(_ snippets: [String], text: String, at location: Int) -> Edit {
+    public static func mediaEdit(_ snippets: [String], text: String, at location: Int) -> Edit {
         let s = text as NSString
         let l = line(s, at: location)
         let nl = l.ending.isEmpty ? previousEnding(s, before: l.range.location) : l.ending

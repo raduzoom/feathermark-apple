@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 
 public enum EditorMode: String, Sendable { case live, raw }
 
@@ -75,16 +79,14 @@ public enum MarkdownStyler {
 
         // Resolve bold/italic into fonts (after block fonts are set).
         // Collect first, then apply: mutating while enumerating, and building a font per span, was quadratic.
-        var fontChanges: [(NSRange, NSFont)] = []
-        var derived: [FontKey: NSFont] = [:]
+        var fontChanges: [(NSRange, PlatformFont)] = []
+        var derived: [FontKey: PlatformFont] = [:]
         let all = NSRange(location: 0, length: scratch.length)
         scratch.enumerateAttributes(in: all) { attrs, r, _ in
-            guard let raw = attrs[.featherTrait] as? UInt32, let f = attrs[.font] as? NSFont, !f.isHidden(theme) else { return }
+            guard let raw = attrs[.featherTrait] as? UInt32, let f = attrs[.font] as? PlatformFont, !f.isHidden(theme) else { return }
             let key = FontKey(font: f, traits: raw)
             let styled = derived[key] ?? {
-                var traits = f.fontDescriptor.symbolicTraits
-                traits.insert(NSFontDescriptor.SymbolicTraits(rawValue: raw))
-                let made = NSFont(descriptor: f.fontDescriptor.withSymbolicTraits(traits), size: f.pointSize) ?? f
+                let made = f.adding(PlatformFontTraits(rawValue: raw))
                 derived[key] = made
                 return made
             }()
@@ -104,7 +106,7 @@ public enum MarkdownStyler {
     // MARK: Raw
 
     static func styleRaw(_ block: Block, set: (NSRange, [NSAttributedString.Key: Any]) -> Void, theme: EditorTheme) {
-        let bold = NSFont.monospacedSystemFont(ofSize: 13.5, weight: .bold)
+        let bold = PlatformFont.monospacedSystemFont(ofSize: 13.5, weight: .bold)
         if case .heading = block.kind { set(block.range, [.font: bold]) }
         for inline in block.inlines where inline.kind == .strong { set(inline.range, [.font: bold]) }
         for m in block.markers + block.inlines.flatMap(\.markers) { set(m, [.foregroundColor: theme.marker]) }
@@ -118,7 +120,7 @@ public enum MarkdownStyler {
     static func styleLive(_ block: Block, text: NSString, set: (NSRange, [NSAttributedString.Key: Any]) -> Void,
                           para: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat, CGFloat) -> NSParagraphStyle,
                           touches: (NSRange) -> Bool, theme: EditorTheme, imageHeight: (String) -> CGFloat) {
-        let hide: [NSAttributedString.Key: Any] = [.font: theme.hidden, .foregroundColor: NSColor.clear, .featherHidden: true]
+        let hide: [NSAttributedString.Key: Any] = [.font: theme.hidden, .foregroundColor: PlatformColor.clear, .featherHidden: true]
         let reveal: [NSAttributedString.Key: Any] = [.font: theme.mono13, .foregroundColor: theme.marker]
         let body = para(theme.bodyLineHeight, 0, nil, 0, 0, 0)
 
@@ -139,7 +141,7 @@ public enum MarkdownStyler {
                 set(NSRange(location: lines.location, length: block.range.location - lines.location), hide)
             }
             if ordered {
-                set(block.markers.first ?? block.range, [.foregroundColor: theme.textSecondary, .font: NSFont.monospacedDigitSystemFont(ofSize: 16, weight: .regular)])
+                set(block.markers.first ?? block.range, [.foregroundColor: theme.textSecondary, .font: PlatformFont.monospacedDigitSystemFont(ofSize: 16, weight: .regular)])
                 set(lines, [.featherDecoration: Decoration.number])
                 set(lines, [.paragraphStyle: para(theme.bodyLineHeight, indent, indent - theme.listIndent, 0, 0, 4)])
             } else if let checkbox {
@@ -186,7 +188,7 @@ public enum MarkdownStyler {
                 lineStart = lineEnd
             }
             for token in CodeHighlighter.tokens(in: text.substring(with: content), language: language) {
-                let color: NSColor = switch token.kind { case .keyword: theme.syntaxKeyword; case .string: theme.syntaxString; case .comment: theme.syntaxComment }
+                let color: PlatformColor = switch token.kind { case .keyword: theme.syntaxKeyword; case .string: theme.syntaxString; case .comment: theme.syntaxComment }
                 set(NSRange(location: content.location + token.range.location, length: token.range.length), [.foregroundColor: color])
             }
             for m in block.markers {
@@ -222,13 +224,13 @@ public enum MarkdownStyler {
             let content = NSRange(location: NSMaxRange(inline.markers.first ?? NSRange(location: inline.range.location, length: 0)),
                                   length: max(0, (inline.markers.last?.location ?? NSMaxRange(inline.range)) - NSMaxRange(inline.markers.first ?? NSRange(location: inline.range.location, length: 0))))
             switch inline.kind {
-            case .strong: set(content, [.featherTrait: NSFontDescriptor.SymbolicTraits.bold.rawValue])
-            case .emphasis: set(content, [.featherTrait: NSFontDescriptor.SymbolicTraits.italic.rawValue])
+            case .strong: set(content, [.featherTrait: PlatformFontTraits.featherBold.rawValue])
+            case .emphasis: set(content, [.featherTrait: PlatformFontTraits.featherItalic.rawValue])
             case .strikethrough: set(content, [.strikethroughStyle: NSUnderlineStyle.single.rawValue])
             case .code: set(content, [.font: theme.mono13, .backgroundColor: theme.inlineCodeBackground])
             case .link(let url) where url.lowercased().hasPrefix("feather://attachment/"):
                 // an attachment chip: the hidden "[" makes room for the type badge
-                set(content, [.foregroundColor: theme.textPrimary, .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+                set(content, [.foregroundColor: theme.textPrimary, .font: PlatformFont.systemFont(ofSize: 13, weight: .semibold),
                               .featherLink: url, .featherChip: url])
                 if let open = inline.markers.first, !touches(inline.range) { set(open, [.kern: 40]) }
             case .link(let url):
@@ -254,7 +256,7 @@ extension NSAttributedString.Key {
     static let featherTrait = NSAttributedString.Key("featherTrait")
 }
 
-extension NSFont {
+extension PlatformFont {
     func isHidden(_ theme: EditorTheme) -> Bool { pointSize < 0.1 }
 }
 
@@ -284,6 +286,6 @@ func eachLine(of range: NSRange, in text: NSString, _ body: (NSRange, Bool, Bool
 
 /// Cache key for a font with extra symbolic traits (bold, italic) added.
 private struct FontKey: Hashable {
-    let font: NSFont
+    let font: PlatformFont
     let traits: UInt32
 }

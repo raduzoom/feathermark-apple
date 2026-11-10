@@ -1,6 +1,10 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
+import FeatherEditorTestSupport
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 @MainActor func makeView(_ text: String) -> EditorTextView {
     let tv = EditorTextView.make()
@@ -266,3 +270,4 @@ import Testing
         #expect(isBold(tv, s.range(of: "bold", options: .backwards).location))
     }
 }
+#endif

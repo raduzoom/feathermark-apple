@@ -1,6 +1,9 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Phase 4 deferred minors (Phase 5 Task 6).
 @MainActor @Suite struct ImageCacheTests {
@@ -67,3 +70,4 @@ import Testing
         #expect(await waitFor({ !FileManager.default.fileExists(atPath: file.path) }, timeout: 5))   // gone once it finished
     }
 }
+#endif

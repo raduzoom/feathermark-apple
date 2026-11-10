@@ -1,6 +1,9 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Phase 5a review probes (editor). RED means a finding.
 @MainActor @Suite struct ReviewProbe5aEditor {
@@ -80,3 +83,4 @@ import Testing
         #expect(tv.imageCache.image(for: first) != nil, "images without a thumbnail after drawing: \(missing)")
     }
 }
+#endif

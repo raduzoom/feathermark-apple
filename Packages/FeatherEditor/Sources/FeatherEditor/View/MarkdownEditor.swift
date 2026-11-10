@@ -1,3 +1,6 @@
+// The AppKit editor view: macOS only (the iPhone view is FeatherEditorPhone, Phase 13).
+#if os(macOS)
+import FeatherEditorCore
 import AppKit
 import SwiftUI
 
@@ -70,3 +73,4 @@ public struct MarkdownEditor: NSViewRepresentable {
         if tv.mode != mode { tv.mode = mode }
     }
 }
+#endif

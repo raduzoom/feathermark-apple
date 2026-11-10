@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 
 /// What a layout fragment draws for a paragraph (read from the attribute at the paragraph's start).
 public enum Decoration: Hashable, Sendable {

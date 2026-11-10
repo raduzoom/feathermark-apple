@@ -1,3 +1,6 @@
+// The AppKit editor view: macOS only (the iPhone view is FeatherEditorPhone, Phase 13).
+#if os(macOS)
+import FeatherEditorCore
 import AppKit
 
 public extension NSTextView {
@@ -683,10 +686,4 @@ extension EditorTextView {
         }
     }
 }
-
-/// What the fragment draws for an attachment chip.
-struct ChipInfo: Sendable {
-    var badge: String
-    var isPDF: Bool
-    var missing: Bool
-}
+#endif

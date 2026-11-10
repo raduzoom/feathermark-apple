@@ -6,15 +6,20 @@ public enum EditorCommands {
         public var range: NSRange
         public var replacement: String
         public var selection: NSRange
+        public init(range: NSRange, replacement: String, selection: NSRange) {
+            self.range = range
+            self.replacement = replacement
+            self.selection = selection
+        }
     }
 
-    struct Line {
-        var range: NSRange        // without the line ending
-        var ending: String        // "\n", "\r\n", "\r" or ""
-        var text: String
+    public struct Line {
+        public var range: NSRange        // without the line ending
+        public var ending: String        // "\n", "\r\n", "\r" or ""
+        public var text: String
     }
 
-    static func line(_ s: NSString, at p: Int) -> Line {
+    public static func line(_ s: NSString, at p: Int) -> Line {
         var start = min(p, s.length)
         while start > 0 { let c = s.character(at: start - 1); if c == 0x0A || c == 0x0D { break }; start -= 1 }
         var end = start
@@ -170,7 +175,7 @@ public enum EditorCommands {
         return nil
     }
 
-    static func previousEnding(_ s: NSString, before lineStart: Int) -> String {
+    public static func previousEnding(_ s: NSString, before lineStart: Int) -> String {
         guard lineStart > 0 else { return "\n" }
         if lineStart >= 2, s.character(at: lineStart - 2) == 0x0D, s.character(at: lineStart - 1) == 0x0A { return "\r\n" }
         return s.character(at: lineStart - 1) == 0x0D ? "\r" : "\n"

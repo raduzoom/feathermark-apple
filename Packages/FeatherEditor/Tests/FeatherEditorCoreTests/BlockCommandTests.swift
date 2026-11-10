@@ -1,6 +1,10 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import Testing
-@testable import FeatherEditor
+@testable import FeatherEditorCore
 
 @Test func matchingFollowsMenuOrder() {
     #expect(BlockChoice.matching("") == BlockChoice.allCases)
@@ -21,7 +25,11 @@ import Testing
     #expect(BlockChoice.allCases.map(\.title) == ["Heading 1", "Heading 2", "Heading 3", "Bulleted list", "Numbered list",
         "To-do list", "Quote", "Divider", "Code block", "Image or file", "Scan from iPhone"])
     #expect(BlockChoice.allCases.filter(\.isTextBlock) == [.heading1, .heading2, .heading3, .bulleted, .numbered, .todo, .quote])
+    #if canImport(AppKit)
     #expect(BlockChoice.allCases.allSatisfy { NSImage(systemSymbolName: $0.symbolName, accessibilityDescription: nil) != nil })
+    #else
+    #expect(BlockChoice.allCases.allSatisfy { UIImage(systemName: $0.symbolName) != nil })
+    #endif
 }
 
 /// Applies a block choice to `withBar` ("|" marks the caret) and returns the new text with "|" at the caret.

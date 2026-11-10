@@ -1,3 +1,6 @@
+// The AppKit editor view: macOS only (the iPhone view is FeatherEditorPhone, Phase 13).
+#if os(macOS)
+import FeatherEditorCore
 import AppKit
 
 /// Gives every paragraph a DecoratedLayoutFragment.
@@ -20,3 +23,4 @@ final class LayoutDelegate: NSObject, @preconcurrency NSTextLayoutManagerDelegat
         return fragment
     }
 }
+#endif

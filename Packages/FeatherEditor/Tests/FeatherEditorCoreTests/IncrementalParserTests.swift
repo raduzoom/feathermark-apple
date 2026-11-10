@@ -1,6 +1,7 @@
 import Foundation
+import FeatherEditorTestSupport
 import Testing
-@testable import FeatherEditor
+@testable import FeatherEditorCore
 
 private let alphabet: [String] = ["<!--", "-->", "<pre>", "a", "b", " ", "\n", "\n\n", "*", "**", "_", "`", "```", "~", "#", "# ", "- ", "1. ", "> ", "[", "]", "(", ")", "- [ ] ", "---", "  ", "\t", "é", "😀", "\r\n", "|", "<b>", "!["]
 

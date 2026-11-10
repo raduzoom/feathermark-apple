@@ -1,6 +1,9 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Continuity Camera: "Scan Documents" delivers a PDF; it becomes a chip in the note.
 @MainActor @Suite struct ScanTests {
@@ -54,3 +57,4 @@ import Testing
         #expect(menu.items.contains { $0.identifier == NSMenuItem.importFromDeviceIdentifier })
     }
 }
+#endif

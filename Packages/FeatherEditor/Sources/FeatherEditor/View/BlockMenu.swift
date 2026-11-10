@@ -1,33 +1,7 @@
+// The AppKit editor view: macOS only (the iPhone view is FeatherEditorPhone, Phase 13).
+#if os(macOS)
+import FeatherEditorCore
 import AppKit
-
-/// The block menu's query, matching choices and selected row.
-struct BlockMenuState: Equatable {
-    static let maxQueryLength = 24
-
-    var query = ""
-    var items = BlockChoice.allCases
-    var selected = 0
-
-    var selection: BlockChoice? { items.indices.contains(selected) ? items[selected] : nil }
-
-    /// Filters by `query` and selects the first row. False, leaving the state as it was, when the menu should
-    /// close instead: nothing matches, the query starts with a space, or it's too long.
-    mutating func setQuery(_ query: String) -> Bool {
-        guard query.count <= Self.maxQueryLength, !query.hasPrefix(" ") else { return false }
-        let matches = BlockChoice.matching(query)
-        guard !matches.isEmpty else { return false }
-        self.query = query
-        items = matches
-        selected = 0
-        return true
-    }
-
-    /// Moves the selection, wrapping at either end.
-    mutating func move(_ delta: Int) {
-        guard !items.isEmpty else { return }
-        selected = ((selected + delta) % items.count + items.count) % items.count
-    }
-}
 
 /// The block menu: a small panel of choices below the caret's line. Opened by "/" it never takes focus (the
 /// editor keeps typing the query and forwards arrows, Return and Esc); opened by "+" it is focused and has
@@ -284,3 +258,4 @@ final class BlockMenuRowView: NSTableRowView {
     }
     override var isEmphasized: Bool { get { false } set {} }
 }
+#endif

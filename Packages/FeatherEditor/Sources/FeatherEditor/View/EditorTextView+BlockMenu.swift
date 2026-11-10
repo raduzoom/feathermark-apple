@@ -1,3 +1,6 @@
+// The AppKit editor view: macOS only (the iPhone view is FeatherEditorPhone, Phase 13).
+#if os(macOS)
+import FeatherEditorCore
 import AppKit
 
 /// What opened the block menu: "/" typed at `location`, or the "+" button.
@@ -279,3 +282,4 @@ final class BlockButton: NSButton {
     override func mouseExited(with event: NSEvent) { hovering = false; contentTintColor = tint }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .arrow) }
 }
+#endif

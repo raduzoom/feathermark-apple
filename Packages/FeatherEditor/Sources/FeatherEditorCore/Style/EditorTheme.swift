@@ -1,12 +1,12 @@
-import AppKit
+import Foundation
 
 /// Fonts, colours and metrics from universal/design/tokens.json and markdown-rendering.md.
 public struct EditorTheme: @unchecked Sendable {
-    public var body, h1, h2, h3, h4: NSFont
-    public var mono13, monoCode, monoRaw, quote, hidden: NSFont
-    public var textBody, textPrimary, textSecondary, textPlaceholder, accent, accentFill, marker: NSColor
-    public var inlineCodeBackground, quoteBackground, codeBackground, codeText, hairline, unrenderedBackground: NSColor
-    public var syntaxKeyword, syntaxString, syntaxComment: NSColor
+    public var body, h1, h2, h3, h4: PlatformFont
+    public var mono13, monoCode, monoRaw, quote, hidden: PlatformFont
+    public var textBody, textPrimary, textSecondary, textPlaceholder, accent, accentFill, marker: PlatformColor
+    public var inlineCodeBackground, quoteBackground, codeBackground, codeText, hairline, unrenderedBackground: PlatformColor
+    public var syntaxKeyword, syntaxString, syntaxComment: PlatformColor
 
     public var measure: CGFloat = 560
     public var bodyLineHeight: CGFloat = 25.6
@@ -20,18 +20,12 @@ public struct EditorTheme: @unchecked Sendable {
     public var blankLineHeight: CGFloat = 16
     public var ruleLineHeight: CGFloat = 49
 
-    static func serif(_ size: CGFloat, _ weight: NSFont.Weight = .regular, italic: Bool = false) -> NSFont {
-        var d = NSFont.systemFont(ofSize: size, weight: weight).fontDescriptor
-        d = d.withDesign(.serif) ?? d
-        if italic { d = d.withSymbolicTraits(.italic) }
-        return NSFont(descriptor: d, size: size) ?? .systemFont(ofSize: size, weight: weight)
+    static func serif(_ size: CGFloat, _ weight: PlatformFont.Weight = .regular, italic: Bool = false) -> PlatformFont {
+        .serifSystemFont(ofSize: size, weight: weight, italic: italic)
     }
 
-    static func dynamic(_ light: UInt32, _ dark: UInt32, _ la: CGFloat = 1, _ da: CGFloat = 1) -> NSColor {
-        func c(_ v: UInt32, _ a: CGFloat) -> NSColor {
-            NSColor(srgbRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: a)
-        }
-        return NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? c(dark, da) : c(light, la) }
+    static func dynamic(_ light: UInt32, _ dark: UInt32, _ la: CGFloat = 1, _ da: CGFloat = 1) -> PlatformColor {
+        .dynamic(light: .srgb(light, alpha: la), dark: .srgb(dark, alpha: da))
     }
 
     public static let standard: EditorTheme = {
@@ -51,7 +45,7 @@ public struct EditorTheme: @unchecked Sendable {
             syntaxKeyword: dynamic(0xF2B880, 0xF2B880), syntaxString: dynamic(0x8FDAB4, 0x8FDAB4), syntaxComment: dynamic(0x9FB2C4, 0x9FB2C4))
     }()
 
-    func headingFont(_ level: Int) -> NSFont {
+    public func headingFont(_ level: Int) -> PlatformFont {
         switch level { case 1: h1; case 2: h2; case 3: h3; default: h4 }
     }
 }

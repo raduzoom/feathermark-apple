@@ -1,6 +1,7 @@
 import Foundation
+import FeatherEditorTestSupport
 import Testing
-@testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Pathological nesting (pasted junk, a stuck key) must never crash the parser: it recurses once per level.
 @Suite struct NestingLimitTests {

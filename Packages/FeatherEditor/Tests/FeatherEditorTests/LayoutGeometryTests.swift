@@ -1,6 +1,10 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
+import FeatherEditorTestSupport
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Where decorations land relative to the text (found by rendering the editor and comparing with the boards).
 @MainActor @Suite struct LayoutGeometryTests {
@@ -86,3 +90,4 @@ import Testing
         }
     }
 }
+#endif

@@ -1,12 +1,16 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 
 /// Draws a paragraph's decoration (markdown-rendering.md) around TextKit's own text drawing.
-final class DecoratedLayoutFragment: NSTextLayoutFragment {
+public final class DecoratedLayoutFragment: NSTextLayoutFragment {
     /// Set on the main thread (when the fragment is made, and on hover); TextKit draws on the main thread too.
-    nonisolated(unsafe) var theme: EditorTheme = .standard
-    nonisolated(unsafe) var showsCopyButton = false
-    nonisolated(unsafe) var imageProvider: (String) -> NSImage? = { _ in nil }
-    nonisolated(unsafe) var chipProvider: (String) -> ChipInfo = { _ in ChipInfo(badge: "?", isPDF: false, missing: true) }
+    nonisolated(unsafe) public var theme: EditorTheme = .standard
+    nonisolated(unsafe) public var showsCopyButton = false
+    nonisolated(unsafe) public var imageProvider: (String) -> PlatformImage? = { _ in nil }
+    nonisolated(unsafe) public var chipProvider: (String) -> ChipInfo = { _ in ChipInfo(badge: "?", isPDF: false, missing: true) }
 
     private var decoration: Decoration? {
         guard let p = textElement as? NSTextParagraph, p.attributedString.length > 0 else { return nil }
@@ -36,13 +40,13 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     /// Where the 16 × 16 checkbox sits (fragment coordinates): 8 before the text. Used for clicks too.
-    var checkboxRect: CGRect? {
+    public var checkboxRect: CGRect? {
         guard case .checkbox = decoration else { return nil }
         return CGRect(x: textStartX - 24, y: firstLineRect.midY - 8, width: 16, height: 16)
     }
 
     /// Where the bullet glyph sits (fragment coordinates).
-    var bulletRect: CGRect? {
+    public var bulletRect: CGRect? {
         guard case .bullet(let depth) = decoration else { return nil }
         let size = bulletGlyph(depth).size()
         return CGRect(x: textStartX - 16, y: firstLineRect.midY - size.height / 2, width: size.width, height: size.height)
@@ -53,7 +57,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     /// The pills behind attachment chips (fragment coordinates), with their link URLs.
-    var chips: [(rect: CGRect, url: String)] {
+    public var chips: [(rect: CGRect, url: String)] {
         guard let p = textElement as? NSTextParagraph, p.attributedString.length > 0 else { return [] }
         var out: [(CGRect, String)] = []
         p.attributedString.enumerateAttribute(.featherChip, in: NSRange(location: 0, length: p.attributedString.length)) { value, run, _ in
@@ -69,49 +73,55 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         return out
     }
 
-    var chipRects: [CGRect] { chips.map(\.rect) }
+    public var chipRects: [CGRect] { chips.map(\.rect) }
 
     /// The code or quote surface for this line, drawn at `point` (the fragment's origin in the drawing).
     /// Top and bottom are rounded to whole points, so consecutive lines' surfaces meet without a seam.
-    func surfaceRect(at point: CGPoint) -> CGRect {
+    public func surfaceRect(at point: CGPoint) -> CGRect {
         let top = point.y.rounded(), bottom = (point.y + layoutFragmentFrame.height).rounded()
         return CGRect(x: point.x - layoutFragmentFrame.minX, y: top, width: containerWidth, height: bottom - top)
     }
 
     /// Where the code block's Copy button sits (first line only).
-    var copyButtonRect: CGRect? {
+    public var copyButtonRect: CGRect? {
         guard case .code(_, true, _) = decoration else { return nil }
         let top = layoutFragmentFrame.height - (textLineFragments.first.map { _ in firstLineRect.height } ?? 0) - theme.codePadding
         return CGRect(x: containerWidth - 64, y: max(0, top - 4), width: 48, height: 20)
     }
 
-    override var renderingSurfaceBounds: CGRect {
+    override public var renderingSurfaceBounds: CGRect {
         var r = super.renderingSurfaceBounds
         r = r.union(CGRect(x: -layoutFragmentFrame.minX, y: 0, width: containerWidth + 16, height: layoutFragmentFrame.height))
         return r
     }
 
-    override func draw(at point: CGPoint, in context: CGContext) {
+    override public func draw(at point: CGPoint, in context: CGContext) {
         let theme = self.theme
         let frame = CGRect(origin: point, size: layoutFragmentFrame.size)
         let left = point.x - layoutFragmentFrame.minX   // the text container's leading edge
-        NSGraphicsContext.saveGraphicsState()
-        defer { NSGraphicsContext.restoreGraphicsState() }
+        #if !canImport(AppKit)
+        // UIKit drawing (paths, strings, images) goes to the current context, which a layer-backed text view
+        // doesn't set; make TextKit's context current. AppKit's text view always does.
+        UIGraphicsPushContext(context)
+        defer { UIGraphicsPopContext() }
+        #endif
+        PlatformGraphics.save()
+        defer { PlatformGraphics.restore() }
 
         switch decoration {
         case .code(let language, let first, let last):
             let rect = surfaceRect(at: point)
             roundedRect(rect, radius: 16, top: first, bottom: last).fill(theme.codeBackground)
             if first, let language {
-                let label = NSAttributedString(string: language, attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: theme.codeText.withAlphaComponent(0.6)])
+                let label = NSAttributedString(string: language, attributes: [.font: PlatformFont.systemFont(ofSize: 11), .foregroundColor: theme.codeText.withAlphaComponent(0.6)])
                 let size = label.size()
                 let showCopy = showsCopyButton
                 label.draw(at: CGPoint(x: left + containerWidth - size.width - (showCopy ? 72 : 16), y: frame.minY + 8))
             }
             if first, showsCopyButton, let r = copyButtonRect {
                 let button = r.offsetBy(dx: left, dy: frame.minY)
-                NSBezierPath(roundedRect: button, xRadius: 6, yRadius: 6).fill(NSColor.white.withAlphaComponent(0.12))
-                let t = NSAttributedString(string: "Copy", attributes: [.font: NSFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: theme.codeText])
+                PlatformBezierPath.rounded(button, radius: 6).fill(PlatformColor.white.withAlphaComponent(0.12))
+                let t = NSAttributedString(string: "Copy", attributes: [.font: PlatformFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: theme.codeText])
                 t.draw(at: CGPoint(x: button.midX - t.size().width / 2, y: button.midY - t.size().height / 2))
             }
         case .quote(let depth, let first, let last):
@@ -135,23 +145,23 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             bulletGlyph(depth).draw(at: CGPoint(x: point.x + r.minX, y: point.y + r.minY))
         case .checkbox(let checked):
             guard let box = checkboxRect?.offsetBy(dx: point.x, dy: point.y) else { break }
-            let path = NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4)
+            let path = PlatformBezierPath.rounded(box, radius: 4)
             if checked {
                 theme.accentFill.setFill(); path.fill()
-                let check = NSBezierPath()
+                let check = PlatformBezierPath()
                 check.move(to: CGPoint(x: box.minX + 4, y: box.midY))
-                check.line(to: CGPoint(x: box.minX + 7, y: box.maxY - 4))
-                check.line(to: CGPoint(x: box.maxX - 3.5, y: box.minY + 4))
+                check.lineTo(CGPoint(x: box.minX + 7, y: box.maxY - 4))
+                check.lineTo(CGPoint(x: box.maxX - 3.5, y: box.minY + 4))
                 check.lineWidth = 2; check.lineCapStyle = .round; check.lineJoinStyle = .round
-                NSColor.white.setStroke(); check.stroke()
+                PlatformColor.white.setStroke(); check.stroke()
             } else {
                 path.lineWidth = 1.5
                 theme.textPlaceholder.setStroke()
-                NSBezierPath(roundedRect: box.insetBy(dx: 0.75, dy: 0.75), xRadius: 3.5, yRadius: 3.5).stroke()
+                PlatformBezierPath.rounded(box.insetBy(dx: 0.75, dy: 0.75), radius: 3.5).stroke()
             }
         case .rule:
             theme.hairline.setFill()
-            CGRect(x: left, y: frame.midY.rounded(.down), width: containerWidth, height: 1).fill()
+            PlatformGraphics.fill(CGRect(x: left, y: frame.midY.rounded(.down), width: containerWidth, height: 1))
         case .image(let url, let alt):
             drawImage(url: url, alt: alt, left: left, frame: frame)
         default:
@@ -167,16 +177,16 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
             let width = min(image.size.width, maxWidth)
             let height = (image.size.height * width / image.size.width).rounded()
             let rect = CGRect(x: x, y: frame.minY, width: width, height: height)
-            NSGraphicsContext.saveGraphicsState()
-            NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12).addClip()
-            image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-            NSGraphicsContext.restoreGraphicsState()
+            PlatformGraphics.save()
+            PlatformBezierPath.rounded(rect, radius: 12).addClip()
+            PlatformGraphics.draw(image, in: rect)
+            PlatformGraphics.restore()
             drawCaption(alt, x: x, y: rect.maxY + 4)
         } else {
             let rect = CGRect(x: x, y: frame.minY, width: min(maxWidth, 320), height: 96)
-            NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12).fill(theme.unrenderedBackground)
+            PlatformBezierPath.rounded(rect, radius: 12).fill(theme.unrenderedBackground)
             let name = URL(string: url)?.lastPathComponent ?? url
-            let label = NSAttributedString(string: alt.isEmpty ? name : alt, attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.textSecondary])
+            let label = NSAttributedString(string: alt.isEmpty ? name : alt, attributes: [.font: PlatformFont.systemFont(ofSize: 12), .foregroundColor: theme.textSecondary])
             label.draw(at: CGPoint(x: rect.minX + 16, y: rect.midY - label.size().height / 2))
             drawCaption(alt, x: x, y: rect.maxY + 4)
         }
@@ -184,7 +194,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
     private func drawCaption(_ alt: String, x: CGFloat, y: CGFloat) {
         guard !alt.isEmpty else { return }
-        NSAttributedString(string: alt, attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.textSecondary])
+        NSAttributedString(string: alt, attributes: [.font: PlatformFont.systemFont(ofSize: 12), .foregroundColor: theme.textSecondary])
             .draw(at: CGPoint(x: x, y: y))
     }
 
@@ -193,35 +203,43 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         for (rect, url) in chips {
             let info = chipProvider(url)
             let pill = rect.offsetBy(dx: point.x, dy: point.y)
-            NSBezierPath(roundedRect: pill, xRadius: 14, yRadius: 14)
-                .fill(info.missing ? NSColor(srgbRed: 0.69, green: 0.43, blue: 0, alpha: 0.12) : theme.unrenderedBackground.withAlphaComponent(0.08))
+            PlatformBezierPath.rounded(pill, radius: 14)
+                .fill(info.missing ? PlatformColor.srgb(red: 0.69, green: 0.43, blue: 0, alpha: 0.12) : theme.unrenderedBackground.withAlphaComponent(0.08))
             let badge = CGRect(x: pill.minX + 4, y: pill.minY + 4, width: 32, height: 20)
-            let badgeColor = info.missing ? NSColor(srgbRed: 0.54, green: 0.33, blue: 0, alpha: 1)
-                : info.isPDF ? NSColor(srgbRed: 0xB8 / 255, green: 0x3A / 255, blue: 0x26 / 255, alpha: 1) : NSColor(srgbRed: 0x3E / 255, green: 0x4C / 255, blue: 0x5A / 255, alpha: 1)
-            NSBezierPath(roundedRect: badge, xRadius: 6, yRadius: 6).fill(badgeColor)
-            let label = NSAttributedString(string: info.badge, attributes: [.font: NSFont.systemFont(ofSize: 9, weight: .bold), .foregroundColor: NSColor.white])
+            let badgeColor = info.missing ? PlatformColor.srgb(red: 0.54, green: 0.33, blue: 0, alpha: 1)
+                : info.isPDF ? PlatformColor.srgb(red: 0xB8 / 255, green: 0x3A / 255, blue: 0x26 / 255, alpha: 1) : PlatformColor.srgb(red: 0x3E / 255, green: 0x4C / 255, blue: 0x5A / 255, alpha: 1)
+            PlatformBezierPath.rounded(badge, radius: 6).fill(badgeColor)
+            let label = NSAttributedString(string: info.badge, attributes: [.font: PlatformFont.systemFont(ofSize: 9, weight: .bold), .foregroundColor: PlatformColor.white])
             label.draw(at: CGPoint(x: badge.midX - label.size().width / 2, y: badge.midY - label.size().height / 2))
         }
     }
 
-    private func roundedRect(_ r: CGRect, radius: CGFloat, top: Bool, bottom: Bool) -> NSBezierPath {
+    private func roundedRect(_ r: CGRect, radius: CGFloat, top: Bool, bottom: Bool) -> PlatformBezierPath {
         // flipped coordinates: minY is the top
-        let path = NSBezierPath()
+        let path = PlatformBezierPath()
         let tl = top ? radius : 0, bl = bottom ? radius : 0
         path.move(to: CGPoint(x: r.minX + tl, y: r.minY))
-        path.line(to: CGPoint(x: r.maxX - tl, y: r.minY))
-        if top { path.appendArc(withCenter: CGPoint(x: r.maxX - tl, y: r.minY + tl), radius: tl, startAngle: 270, endAngle: 0) }
-        path.line(to: CGPoint(x: r.maxX, y: r.maxY - bl))
-        if bottom { path.appendArc(withCenter: CGPoint(x: r.maxX - bl, y: r.maxY - bl), radius: bl, startAngle: 0, endAngle: 90) }
-        path.line(to: CGPoint(x: r.minX + bl, y: r.maxY))
-        if bottom { path.appendArc(withCenter: CGPoint(x: r.minX + bl, y: r.maxY - bl), radius: bl, startAngle: 90, endAngle: 180) }
-        path.line(to: CGPoint(x: r.minX, y: r.minY + tl))
-        if top { path.appendArc(withCenter: CGPoint(x: r.minX + tl, y: r.minY + tl), radius: tl, startAngle: 180, endAngle: 270) }
+        path.lineTo(CGPoint(x: r.maxX - tl, y: r.minY))
+        if top { path.arc(center: CGPoint(x: r.maxX - tl, y: r.minY + tl), radius: tl, startDegrees: 270, endDegrees: 0) }
+        path.lineTo(CGPoint(x: r.maxX, y: r.maxY - bl))
+        if bottom { path.arc(center: CGPoint(x: r.maxX - bl, y: r.maxY - bl), radius: bl, startDegrees: 0, endDegrees: 90) }
+        path.lineTo(CGPoint(x: r.minX + bl, y: r.maxY))
+        if bottom { path.arc(center: CGPoint(x: r.minX + bl, y: r.maxY - bl), radius: bl, startDegrees: 90, endDegrees: 180) }
+        path.lineTo(CGPoint(x: r.minX, y: r.minY + tl))
+        if top { path.arc(center: CGPoint(x: r.minX + tl, y: r.minY + tl), radius: tl, startDegrees: 180, endDegrees: 270) }
         path.close()
         return path
     }
 }
 
-private extension NSBezierPath {
-    func fill(_ color: NSColor) { color.setFill(); fill() }
+/// What the fragment draws for an attachment chip.
+public struct ChipInfo: Sendable {
+    public var badge: String
+    public var isPDF: Bool
+    public var missing: Bool
+    public init(badge: String, isPDF: Bool, missing: Bool) {
+        self.badge = badge
+        self.isPDF = isPDF
+        self.missing = missing
+    }
 }

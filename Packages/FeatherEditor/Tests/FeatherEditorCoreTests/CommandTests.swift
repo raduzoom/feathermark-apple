@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Applies a command's edit to `text` and returns the new text with "|" at the caret.
 func run(_ text: String, caret: Int, _ command: (String, MarkdownDocument, NSRange) -> EditorCommands.Edit?) -> String? {

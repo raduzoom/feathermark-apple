@@ -1,6 +1,9 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 func makePNG(width: Int, height: Int) -> URL {
     let url = FileManager.default.temporaryDirectory.appending(path: "FNImg-\(UUID().uuidString).png")
@@ -76,3 +79,4 @@ func makePNG(width: Int, height: Int) -> URL {
         #expect(tv.string == "[x](feather://attachment/X)")
     }
 }
+#endif

@@ -1,6 +1,10 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
+import FeatherEditorTestSupport
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// A deterministic note of about `words` words using every construct.
 func generatedNote(words: Int, seed: UInt64 = 7) -> String {
@@ -151,3 +155,4 @@ let budget = (parse: 60.0, open: 150.0, median: 4.0, p99: 16.0, scroll: 16.0, ho
         #expect(tv.parser.document.blocks.last?.kind == .heading(level: 1))
     }
 }
+#endif

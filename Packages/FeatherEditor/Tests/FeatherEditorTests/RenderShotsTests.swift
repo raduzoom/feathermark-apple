@@ -1,6 +1,9 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Renders the editor offscreen for comparison with the design boards (`desktop-editor-*`,
 /// `spec-markdown-rendering`). Opt-in, and needs no screen-recording or UI-automation permission:
@@ -109,3 +112,4 @@ import Testing
         try rep.representation(using: .png, properties: [:])!.write(to: url)
     }
 }
+#endif

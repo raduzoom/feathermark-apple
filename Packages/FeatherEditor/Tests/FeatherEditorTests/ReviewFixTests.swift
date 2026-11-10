@@ -1,6 +1,10 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
+import FeatherEditorTestSupport
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Regression tests from the Phase 4 fresh review. Each was RED on the reviewed tree and pins one fixed finding.
 
@@ -339,3 +343,4 @@ enum ProbeOp: CustomStringConvertible {
     _ = await waitFor({ imported && tv.string.hasPrefix("![p]") }, timeout: 3)
     #expect(imported && tv.string.hasPrefix("![p]"), "editor holds \(tv.string.debugDescription)")
 }
+#endif

@@ -1,6 +1,7 @@
 import Foundation
+import FeatherEditorTestSupport
 import Testing
-@testable import FeatherEditor
+@testable import FeatherEditorCore
 import Markdown
 
 func sub(_ text: String, _ r: NSRange) -> String { (text as NSString).substring(with: r) }
@@ -114,7 +115,7 @@ func blocks(_ text: String) -> [Block] { MarkdownParser.parse(text).blocks }
 }
 
 /// A pasted 1 MB line with thousands of inline spans must parse in linear time.
-@Suite struct ParserScalingTests {
+@Suite(.enabled(if: isMac, timingReason)) struct ParserScalingTests {
     func parseTime(spans: Int) -> Double {
         let text = String(repeating: "word **b** ", count: spans)
         let d = ContinuousClock().measure { _ = MarkdownParser.parse(text) }

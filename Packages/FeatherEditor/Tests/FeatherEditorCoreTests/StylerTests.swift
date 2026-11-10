@@ -1,22 +1,12 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
+import FeatherEditorTestSupport
+import Foundation
 import Testing
-@testable import FeatherEditor
-
-/// Styles `text` with the caret at `caret` and returns the storage, for reading attributes back.
-@MainActor func styled(_ text: String, caret: Int? = nil, mode: EditorMode = .live) -> NSTextStorage {
-    let storage = NSTextStorage(string: text)
-    let doc = MarkdownParser.parse(text)
-    let whole = NSRange(location: 0, length: (text as NSString).length)
-    let sel = NSRange(location: caret ?? (text as NSString).length + 1, length: 0)
-    for run in MarkdownStyler.runs(text: text, document: doc, selection: sel, mode: mode, theme: .standard, in: whole) {
-        storage.setAttributes(run.attributes.nsAttributes, range: run.range)
-    }
-    return storage
-}
-
-@MainActor func isHidden(_ s: NSTextStorage, _ i: Int) -> Bool { s.attribute(.featherHidden, at: i, effectiveRange: nil) as? Bool == true }
-@MainActor func font(_ s: NSTextStorage, _ i: Int) -> NSFont { s.attribute(.font, at: i, effectiveRange: nil) as! NSFont }
-@MainActor func decoration(_ s: NSTextStorage, _ i: Int) -> Decoration? { s.attribute(.featherDecoration, at: i, effectiveRange: nil) as? Decoration }
+@testable import FeatherEditorCore
 
 @MainActor @Suite struct StylerTests {
     let theme = EditorTheme.standard
@@ -29,9 +19,9 @@ import Testing
         #expect(font(s, at("One")).pointSize == 30)
         #expect(font(s, at("Two")).pointSize == 22)
         #expect(font(s, at("Three")).pointSize == 18)
-        #expect(font(s, at("Four")).pointSize == 16 && font(s, at("Four")).fontDescriptor.symbolicTraits.contains(.bold))
-        #expect(font(s, at("One")).fontDescriptor.symbolicTraits.contains(.bold))
-        #expect(s.attribute(.foregroundColor, at: at("Six"), effectiveRange: nil) as? NSColor == theme.textSecondary)
+        #expect(font(s, at("Four")).pointSize == 16 && font(s, at("Four")).fontDescriptor.symbolicTraits.contains(.featherBold))
+        #expect(font(s, at("One")).fontDescriptor.symbolicTraits.contains(.featherBold))
+        #expect(s.attribute(.foregroundColor, at: at("Six"), effectiveRange: nil) as? PlatformColor == theme.textSecondary)
         let p = s.attribute(.paragraphStyle, at: at("One"), effectiveRange: nil) as! NSParagraphStyle
         #expect(p.minimumLineHeight == 36 && p.maximumLineHeight == 36)
     }
@@ -51,9 +41,9 @@ import Testing
         for caret in [2, 4, 10] {   // at the first marker, inside, just past the end
             let s = styled(t, caret: caret)
             #expect(!isHidden(s, 2) && !isHidden(s, 8), "caret \(caret)")
-            #expect(font(s, 2).fontDescriptor.symbolicTraits.contains(.monoSpace))
+            #expect(font(s, 2).fontDescriptor.symbolicTraits.contains(.featherMonoSpace))
             #expect(font(s, 2).pointSize == 13)
-            #expect(s.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor == theme.marker)
+            #expect(s.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? PlatformColor == theme.marker)
         }
         #expect(isHidden(styled(t, caret: 11), 2))
         let h = styled("# Head\n\nx", caret: 3)
@@ -74,7 +64,7 @@ import Testing
     @Test func checkedItemTextIsSecondary() {
         let s = styled("- [x] done\n- [ ] todo")
         #expect(decoration(s, 6) == .checkbox(checked: true))
-        #expect(s.attribute(.foregroundColor, at: 6, effectiveRange: nil) as? NSColor == theme.textSecondary)
+        #expect(s.attribute(.foregroundColor, at: 6, effectiveRange: nil) as? PlatformColor == theme.textSecondary)
         #expect(decoration(s, 17) == .checkbox(checked: false))
         #expect((0..<6).allSatisfy { isHidden(s, $0) })
     }
@@ -84,18 +74,18 @@ import Testing
         let s = styled(t, mode: .raw)
         for i in 0..<(t as NSString).length {
             #expect(!isHidden(s, i))
-            #expect(font(s, i).fontDescriptor.symbolicTraits.contains(.monoSpace))
+            #expect(font(s, i).fontDescriptor.symbolicTraits.contains(.featherMonoSpace))
         }
-        #expect(s.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor == theme.marker)
-        #expect(font(s, 2).fontDescriptor.symbolicTraits.contains(.bold))
-        #expect(font(s, 7).fontDescriptor.symbolicTraits.contains(.bold))
+        #expect(s.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? PlatformColor == theme.marker)
+        #expect(font(s, 2).fontDescriptor.symbolicTraits.contains(.featherBold))
+        #expect(font(s, 7).fontDescriptor.symbolicTraits.contains(.featherBold))
         #expect(decoration(s, 7) == nil)
     }
 
     @Test func unrenderedIsMonoOnFaintBackground() {
         let s = styled("| a | b |\n|---|---|\n| 1 | 2 |")
-        #expect(font(s, 2).fontDescriptor.symbolicTraits.contains(.monoSpace) && font(s, 2).pointSize == 13)
-        #expect(s.attribute(.backgroundColor, at: 2, effectiveRange: nil) as? NSColor == theme.unrenderedBackground)
+        #expect(font(s, 2).fontDescriptor.symbolicTraits.contains(.featherMonoSpace) && font(s, 2).pointSize == 13)
+        #expect(s.attribute(.backgroundColor, at: 2, effectiveRange: nil) as? PlatformColor == theme.unrenderedBackground)
         #expect(!isHidden(s, 0))
     }
 
@@ -123,6 +113,12 @@ import Testing
         #expect(CodeHighlighter.tokens(in: "a /* b */ c", language: nil).first?.kind == .comment)
     }
 
+    /// Ranges and attribute names are platform-neutral; only the font and colour objects differ by platform.
+    @Test func stylerRunsAreTheSameOnBothPlatforms() {
+        let text = "# Title\n\n- [ ] task **bold** `code`\n> quote\n"
+        #expect(styledRuns(text) == StylerFixtures.liveRuns)
+    }
+
     @Test func corpusRoundTripsByteIdentical() {
         for (name, text) in Corpus.all() {
             for caret in [0, (text as NSString).length / 2, (text as NSString).length] {
@@ -136,7 +132,7 @@ import Testing
 }
 
 /// One paragraph with thousands of bold spans (a pasted 1 MB line) must style in linear time.
-@MainActor @Suite struct StylerScalingTests {
+@MainActor @Suite(.enabled(if: isMac, timingReason)) struct StylerScalingTests {
     func styleTime(spans: Int) -> Double {
         let text = String(repeating: "word **b** ", count: spans)
         let doc = MarkdownParser.parse(text)
@@ -163,7 +159,7 @@ import Testing
         let text = String(repeating: "word **b** ", count: 7_000)   // 77 KB
         let s = styled(text, caret: 0)
         #expect(!isHidden(s, 5))   // the ** stays visible
-        #expect(!font(s, 7).fontDescriptor.symbolicTraits.contains(.bold))
+        #expect(!font(s, 7).fontDescriptor.symbolicTraits.contains(.featherBold))
         #expect(font(s, 7) == EditorTheme.standard.body)
     }
 
@@ -171,6 +167,6 @@ import Testing
         let text = String(repeating: "word **b** ", count: 5_000)   // 55 KB
         let s = styled(text, caret: 0)
         #expect(isHidden(s, 5))
-        #expect(font(s, 7).fontDescriptor.symbolicTraits.contains(.bold))
+        #expect(font(s, 7).fontDescriptor.symbolicTraits.contains(.featherBold))
     }
 }

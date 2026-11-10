@@ -1,6 +1,9 @@
+// Tests of the AppKit editor view: macOS only.
+#if os(macOS)
 import AppKit
 import Testing
 @testable import FeatherEditor
+@testable import FeatherEditorCore
 
 /// Types `s` one character at a time, as keystrokes do.
 @MainActor func type(_ tv: EditorTextView, _ s: String) {
@@ -231,3 +234,4 @@ import Testing
     window.contentView = tv
     return (window, tv)
 }
+#endif
