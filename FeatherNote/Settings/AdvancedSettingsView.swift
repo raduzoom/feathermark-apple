@@ -1,3 +1,4 @@
+import FeatherAppModel
 import SwiftUI
 
 /// Settings › Advanced: the sync server (desktop-settings-advanced board).

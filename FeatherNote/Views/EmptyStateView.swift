@@ -1,3 +1,4 @@
+import FeatherAppModel
 import SwiftUI
 
 /// A designed empty state: title, message, at most one primary action and one secondary.

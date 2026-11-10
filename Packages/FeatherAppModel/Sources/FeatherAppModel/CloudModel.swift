@@ -1,4 +1,3 @@
-import AppKit
 import FeatherCore
 import FeatherCrypto
 import FeatherSync
@@ -6,83 +5,92 @@ import Foundation
 import Observation
 
 /// Where account secrets live and how the app talks to a server. Nothing here touches the network.
-struct CloudEnvironment {
-    var secrets: SecretStore
-    var keys: MasterKeyStore
+public struct CloudEnvironment {
+    public var secrets: SecretStore
+    public var keys: MasterKeyStore
     /// Built only when the app first needs the network.
-    var configuration: () -> URLSessionConfiguration
-    var deviceName: String
+    public var configuration: () -> URLSessionConfiguration
+    public var deviceName: String
     /// Whether Feather Cloud has billing, from the build (false in 1.0.0).
-    var hostedBillingEnabled = CloudServer.hostedBillingEnabled
+    public var hostedBillingEnabled = CloudServer.hostedBillingEnabled
 
     /// The Keychain normally; memory for test hosts and other isolated runs, which must never touch real secrets.
-    static func live(isolated: Bool) -> CloudEnvironment {
+    public static func live(isolated: Bool, deviceName: String = defaultDeviceName) -> CloudEnvironment {
         CloudEnvironment(secrets: isolated ? InMemorySecretStore() : KeychainSecretStore(),
                          keys: isolated ? InMemoryMasterKeyStore() : KeychainMasterKeyStore(),
-                         configuration: { .ephemeral }, deviceName: Host.current().localizedName ?? "Mac")
+                         configuration: { .ephemeral }, deviceName: deviceName)
     }
 
-    static var memory: CloudEnvironment { live(isolated: true) }
+    /// The name the account's device list shows: this Mac's name. The iPhone app passes its own (Phase 12).
+    public static var defaultDeviceName: String {
+        #if os(macOS)
+        Host.current().localizedName ?? "Mac"
+        #else
+        "iPhone"
+        #endif
+    }
+
+    public static var memory: CloudEnvironment { live(isolated: true) }
 }
 
-enum CloudState: Equatable {
+public enum CloudState: Equatable {
     case signedOut
     case signedIn(SignedIn)
 
-    var signedIn: SignedIn? {
+    public var signedIn: SignedIn? {
         if case .signedIn(let s) = self { return s }
         return nil
     }
 }
 
 /// What the app does around a sync pass: save pending edits first, refresh after a pull.
-struct CloudHooks {
-    var beforeSync: @MainActor () async -> Void
-    var onPulled: @MainActor (Set<ULID>) async -> Void
+public struct CloudHooks: Sendable {
+    public var beforeSync: @MainActor () async -> Void
+    public var onPulled: @MainActor (Set<ULID>) async -> Void
 }
 
 /// Feather Cloud account and sync state. Views read it; it builds no client and makes no request until the user
 /// starts the trial, signs in or connects a server, or a sign-in is stored from an earlier launch.
 @MainActor @Observable
-final class CloudModel {
-    static let serverKey = "cloudServer"
-    static let accountKey = "cloudAccount"
-    static let libraryKey = "cloudLibrary"
+public final class CloudModel {
+    public static let serverKey = "cloudServer"
+    public static let accountKey = "cloudAccount"
+    public static let libraryKey = "cloudLibrary"
 
-    let library: Library
-    let defaults: UserDefaults
-    var environment: CloudEnvironment
-    var hooks: CloudHooks
+    public let library: Library
+    public let defaults: UserDefaults
+    public var environment: CloudEnvironment
+    public var hooks: CloudHooks
 
-    private(set) var state: CloudState = .signedOut
-    private(set) var status: SyncStatus = .idle(lastSynced: nil)
-    private(set) var server: CloudServer
-    private(set) var serverInfo: ServerInfo?
-    private(set) var conflicts: [SyncConflict] = []
-    private(set) var devices: [CloudDevice] = []
-    private(set) var plan: CloudPlan?
+    public private(set) var state: CloudState = .signedOut
+    public private(set) var status: SyncStatus = .idle(lastSynced: nil)
+    public private(set) var server: CloudServer
+    public private(set) var serverInfo: ServerInfo?
+    public private(set) var conflicts: [SyncConflict] = []
+    public private(set) var devices: [CloudDevice] = []
+    public private(set) var plan: CloudPlan?
 
     /// The account sheet on the main window, if any.
-    enum Sheet: Identifiable {
+    public enum Sheet: Identifiable {
         case onboarding(OnboardingFlow)
         case signIn(SignInFlow)
-        var id: String { switch self { case .onboarding: "onboarding"; case .signIn: "signIn" } }
+        public var id: String { switch self { case .onboarding: "onboarding"; case .signIn: "signIn" } }
     }
-    var sheet: Sheet?
+    public var sheet: Sheet?
 
-    func startTrial() { sheet = .onboarding(OnboardingFlow(cloud: self)) }
-    func showSignIn() {
+    public func startTrial() { sheet = .onboarding(OnboardingFlow(cloud: self)) }
+    public func showSignIn() {
         let flow = SignInFlow(cloud: self)
         flow.email = reauthEmail ?? ""
         sheet = .signIn(flow)
     }
 
     /// Set when the server ended the session (401): the email to sign in again with.
-    private(set) var reauthEmail: String?
+    public private(set) var reauthEmail: String?
 
     /// The server ended this Mac's session (revoked, or the password changed elsewhere): keep the email so the
     /// app asks to sign in again instead of offering a trial.
-    func serverSignedOut() async {
+    public func serverSignedOut() async {
         let email = state.signedIn?.email ?? defaults.string(forKey: Self.accountKey)
         await forgetLocally()
         reauthEmail = email
@@ -92,26 +100,26 @@ final class CloudModel {
     private var engine: SyncEngine?
     private var statusTask: Task<Void, Never>?
 
-    var hasAccountService: Bool { account != nil }
+    public var hasAccountService: Bool { account != nil }
     /// Signed out on Feather Cloud with billing: Settings and the footer offer the free trial. Never on another
     /// server, even one with billing: the trial terms are Feather Cloud's.
-    var offersTrial: Bool { state == .signedOut && !isSelfHosted && billingEnabled && reauthEmail == nil }
+    public var offersTrial: Bool { state == .signedOut && !isSelfHosted && billingEnabled && reauthEmail == nil }
 
     /// Whether this server has trials and plans. Signed in, the account says; signed out, the build says for
     /// Feather Cloud and GET /server for another server. Off means: no trial, subscribe or plan screens.
-    var billingEnabled: Bool {
+    public var billingEnabled: Bool {
         if let s = state.signedIn { return s.account.billingEnabled }
         return isSelfHosted ? (serverInfo?.billingEnabled ?? false) : environment.hostedBillingEnabled
     }
 
     /// The two buttons Settings › Sync offers when signed out.
-    var signedOutActions: [String] {
+    public var signedOutActions: [String] {
         [billingEnabled && !isSelfHosted ? "Start Free 14-Day Trial…" : isSelfHosted ? "Create Account…" : "Create Free Account…", "Sign In…"]
     }
     /// A server other than Feather Cloud: trial and plan details don't apply.
-    var isSelfHosted: Bool { server != .hosted }
+    public var isSelfHosted: Bool { server != .hosted }
 
-    init(library: Library, defaults: UserDefaults, environment: CloudEnvironment, hooks: CloudHooks) {
+    public init(library: Library, defaults: UserDefaults, environment: CloudEnvironment, hooks: CloudHooks) {
         self.library = library
         self.defaults = defaults
         self.environment = environment
@@ -121,7 +129,7 @@ final class CloudModel {
 
     // MARK: Server
 
-    static func message(_ e: ServerURLError) -> String {
+    public static func message(_ e: ServerURLError) -> String {
         switch e {
         case .invalid: "Enter the server's address."
         case .insecure: "Use an https:// address. Plain http works only for this Mac (localhost)."
@@ -129,7 +137,7 @@ final class CloudModel {
     }
 
     /// Checks a server (GET /server) and uses it. Returns a message to show, or nil.
-    func connect(serverInput: String) async -> String? {
+    public func connect(serverInput: String) async -> String? {
         let candidate: CloudServer
         do { candidate = try CloudServer(userInput: serverInput) } catch { return Self.message(error) }
         do {
@@ -144,14 +152,14 @@ final class CloudModel {
         }
     }
 
-    func useHostedServer() {
+    public func useHostedServer() {
         server = .hosted
         serverInfo = nil
         defaults.removeObject(forKey: Self.serverKey)
         account = nil
     }
 
-    func accountService() -> AccountService {
+    public func accountService() -> AccountService {
         if let account, account.server == server { return account }
         let a = AccountService(server: server, secrets: environment.secrets, keys: environment.keys, configuration: environment.configuration())
         account = a
@@ -161,7 +169,7 @@ final class CloudModel {
     // MARK: Sign-in state
 
     /// At launch: picks up a sign-in stored by an earlier launch and starts syncing. Without one, does nothing.
-    func restoreAtLaunch() async {
+    public func restoreAtLaunch() async {
         guard let email = defaults.string(forKey: Self.accountKey), let libraryID = defaults.string(forKey: Self.libraryKey) else { return }
         let a = accountService()
         guard await a.restore(email: email) else { return }
@@ -175,7 +183,7 @@ final class CloudModel {
 
     /// After signup, sign-in or recovery: remember the account and start syncing. `merge` marks every local item
     /// as new to the server (signing in with notes already on this Mac).
-    func didSignIn(_ s: SignedIn, merge: Bool) async {
+    public func didSignIn(_ s: SignedIn, merge: Bool) async {
         try? await library.resetSync(markAllDirty: merge)
         defaults.set(s.email, forKey: Self.accountKey)
         defaults.set(s.libraryID, forKey: Self.libraryKey)
@@ -186,7 +194,7 @@ final class CloudModel {
     }
 
     /// Signs out: ends the session if the server answers, forgets the secrets either way, keeps every note.
-    func signOut() async {
+    public func signOut() async {
         await engine?.stop()
         engine = nil
         statusTask?.cancel()
@@ -210,7 +218,7 @@ final class CloudModel {
         conflicts = []
     }
 
-    func refreshAccount() async {
+    public func refreshAccount() async {
         guard let a = account else { return }
         if let acct = try? await a.account() {
             plan = acct.plan
@@ -220,7 +228,7 @@ final class CloudModel {
         conflicts = (try? await library.syncConflicts()) ?? conflicts
     }
 
-    func revoke(_ id: String) async {
+    public func revoke(_ id: String) async {
         try? await account?.revoke(id)
         devices = (try? await account?.devices()) ?? devices
     }
@@ -242,6 +250,6 @@ final class CloudModel {
         }
     }
 
-    func syncNow() { Task { await engine?.syncNow() } }
-    func localChanged() { Task { await engine?.localChanged() } }
+    public func syncNow() { Task { await engine?.syncNow() } }
+    public func localChanged() { Task { await engine?.localChanged() } }
 }

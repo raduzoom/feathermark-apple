@@ -1,3 +1,4 @@
+import FeatherAppModel
 import SwiftUI
 
 /// Sign in on this Mac, or with the recovery key (desktop-signin-* boards).

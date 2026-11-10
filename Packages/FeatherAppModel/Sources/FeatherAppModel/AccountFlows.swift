@@ -5,15 +5,15 @@ import Foundation
 import Observation
 
 /// The strength label on the password field (board desktop-onboarding-2): code points after NFC.
-enum PasswordStrength: Equatable {
+public enum PasswordStrength: Equatable {
     case tooShort, fair, good, strong
 
-    init(_ password: String) {
+    public init(_ password: String) {
         let n = password.precomposedStringWithCanonicalMapping.unicodeScalars.count
         self = n < 10 ? .tooShort : n < 12 ? .fair : n < 16 ? .good : .strong
     }
 
-    var label: String? {
+    public var label: String? {
         switch self {
         case .tooShort: nil
         case .fair: "Fair"
@@ -24,18 +24,18 @@ enum PasswordStrength: Equatable {
 }
 
 /// Fixed account copy (ui-copy.md "Security and recovery", the onboarding and sign-in boards).
-enum AccountCopy {
-    static let lostBoth = "Without your password or your recovery key, your notes can't be decrypted by anyone, including us."
-    static let encryption = "Your notes are encrypted on this device before they're uploaded. Only your devices can read them."
-    static let passwordNote = "We never see this password, so we can't reset it for you. In step 4 you'll get a recovery key as your backup."
-    static let passwordHint = "Use 12 or more characters. A few random words work well."
-    static let recoveryTitle = "Save your recovery key"
-    static let recoveryBody = "This key is the only way back into your notes if you forget your password. Feather Cloud never sees your password or your notes, so we can't reset it for you. Print it or save it somewhere safe, away from this device."
-    static let recoveryConfirm = "I've saved my recovery key somewhere safe"
+public enum AccountCopy {
+    public static let lostBoth = "Without your password or your recovery key, your notes can't be decrypted by anyone, including us."
+    public static let encryption = "Your notes are encrypted on this device before they're uploaded. Only your devices can read them."
+    public static let passwordNote = "We never see this password, so we can't reset it for you. In step 4 you'll get a recovery key as your backup."
+    public static let passwordHint = "Use 12 or more characters. A few random words work well."
+    public static let recoveryTitle = "Save your recovery key"
+    public static let recoveryBody = "This key is the only way back into your notes if you forget your password. Feather Cloud never sees your password or your notes, so we can't reset it for you. Print it or save it somewhere safe, away from this device."
+    public static let recoveryConfirm = "I've saved my recovery key somewhere safe"
 
-    static func verifySent(_ email: String) -> String { "We sent a 6-digit code to \(email). It expires in 15 minutes." }
+    public static func verifySent(_ email: String) -> String { "We sent a 6-digit code to \(email). It expires in 15 minutes." }
 
-    static func message(_ e: AccountError) -> String {
+    public static func message(_ e: AccountError) -> String {
         switch e {
         case .wrongPassword: "That password doesn't match. Forgot it? Sign in with your recovery key instead."
         case .recoveryKeyTypo: "That recovery key has a typo. Check each group and try again."
@@ -50,43 +50,43 @@ enum AccountCopy {
         }
     }
 
-    static func message(_ error: Error) -> String {
+    public static func message(_ error: Error) -> String {
         (error as? AccountError).map(message) ?? "Something went wrong. Try again."
     }
 }
 
 /// Feather Cloud onboarding, steps 1–5 (desktop-onboarding-* boards).
 @MainActor @Observable
-final class OnboardingFlow {
-    let cloud: CloudModel
-    var step = 1
-    var email = ""
-    var password = ""
-    var code = ""
-    var savedConfirmed = false
+public final class OnboardingFlow {
+    public let cloud: CloudModel
+    public var step = 1
+    public var email = ""
+    public var password = ""
+    public var code = ""
+    public var savedConfirmed = false
     /// Shown on step 4 only, then forgotten; never stored.
-    private(set) var recoveryText: String?
-    private(set) var working = false
-    private(set) var error: String?
-    private(set) var signedIn: SignedIn?
+    public private(set) var recoveryText: String?
+    public private(set) var working = false
+    public private(set) var error: String?
+    public private(set) var signedIn: SignedIn?
 
-    init(cloud: CloudModel) { self.cloud = cloud }
+    public init(cloud: CloudModel) { self.cloud = cloud }
 
-    var strength: PasswordStrength { PasswordStrength(password) }
+    public var strength: PasswordStrength { PasswordStrength(password) }
 
     /// Step 1's promises; a server without billing makes no trial or payment promise.
-    var introBullets: [String] {
+    public var introBullets: [String] {
         cloud.billingEnabled && !cloud.isSelfHosted
             ? ["Mac, iPhone, iPad, Windows and Android", "14 days free, no card. 1 GB during the trial.", "If you ever stop paying, nothing is deleted."]
             : ["Mac, iPhone, iPad, Windows and Android", cloud.isSelfHosted ? "Stored on \(cloud.server.host)." : "Free during the first release."]
     }
 
-    var emailLooksValid: Bool {
+    public var emailLooksValid: Bool {
         let parts = email.trimmingCharacters(in: .whitespaces).split(separator: "@")
         return parts.count == 2 && !parts[0].isEmpty && parts[1].contains(".")
     }
 
-    var canContinue: Bool {
+    public var canContinue: Bool {
         guard !working else { return false }
         switch step {
         case 2: return emailLooksValid && strength != .tooShort
@@ -96,7 +96,7 @@ final class OnboardingFlow {
         }
     }
 
-    func showRecoveryKey(_ key: RecoveryKey) {
+    public func showRecoveryKey(_ key: RecoveryKey) {
         recoveryText = key.text
         savedConfirmed = false
         step = 4
@@ -104,7 +104,7 @@ final class OnboardingFlow {
 
     private var pendingKey: RecoveryKey?
 
-    func next() async {
+    public func next() async {
         guard canContinue else { return }
         error = nil
         switch step {
@@ -138,44 +138,44 @@ final class OnboardingFlow {
     }
 
     /// Back stops at step 4: once the code is verified the account exists, and the code is spent.
-    var canGoBack: Bool { step > 1 && step < 4 && !working }
+    public var canGoBack: Bool { step > 1 && step < 4 && !working }
 
-    func back() {
+    public func back() {
         guard canGoBack else { return }
         error = nil
         step -= 1
     }
 
-    func resend() async {
+    public func resend() async {
         do { try await cloud.accountService().resend(email: email.trimmingCharacters(in: .whitespaces)) } catch { self.error = AccountCopy.message(error) }
     }
 }
 
 /// Sign in on another Mac, or with the recovery key (desktop-signin-* boards).
 @MainActor @Observable
-final class SignInFlow {
-    enum Mode { case password, recoveryKey, newPassword }
+public final class SignInFlow {
+    public enum Mode { case password, recoveryKey, newPassword }
 
-    let cloud: CloudModel
-    var mode = Mode.password
-    var email = ""
-    var password = ""
-    var recoveryText = ""
-    var newPassword = ""
-    var confirmPassword = ""
-    private(set) var working = false
-    private(set) var error: String?
+    public let cloud: CloudModel
+    public var mode = Mode.password
+    public var email = ""
+    public var password = ""
+    public var recoveryText = ""
+    public var newPassword = ""
+    public var confirmPassword = ""
+    public private(set) var working = false
+    public private(set) var error: String?
     /// How many notes this Mac already has, when signing in would merge them into the account.
-    private(set) var mergePrompt: Int?
-    private(set) var done = false
+    public private(set) var mergePrompt: Int?
+    public private(set) var done = false
     private var pending: SignedIn?
     private var recovery: RecoveryHandle?
 
-    init(cloud: CloudModel) { self.cloud = cloud }
+    public init(cloud: CloudModel) { self.cloud = cloud }
 
-    var trimmedEmail: String { email.trimmingCharacters(in: .whitespaces) }
+    public var trimmedEmail: String { email.trimmingCharacters(in: .whitespaces) }
 
-    func signIn() async {
+    public func signIn() async {
         working = true
         defer { working = false }
         error = nil
@@ -187,7 +187,7 @@ final class SignInFlow {
     }
 
     /// Signed in: merge straight away on an empty Mac, otherwise ask first.
-    func didAuthenticate(_ s: SignedIn) async {
+    public func didAuthenticate(_ s: SignedIn) async {
         let local = (try? await cloud.library.counts().all) ?? 0
         if local > 0 {
             pending = s
@@ -198,7 +198,7 @@ final class SignInFlow {
         }
     }
 
-    func confirmMerge() async {
+    public func confirmMerge() async {
         guard let s = pending else { return }
         pending = nil
         mergePrompt = nil
@@ -207,18 +207,18 @@ final class SignInFlow {
     }
 
     /// Keeps this Mac's notes as they are and signs the new session out again.
-    func cancelMerge() async {
+    public func cancelMerge() async {
         pending = nil
         mergePrompt = nil
         await cloud.signOut()
     }
 
-    func useRecoveryKey() {
+    public func useRecoveryKey() {
         error = nil
         mode = .recoveryKey
     }
 
-    func submitRecoveryKey() async {
+    public func submitRecoveryKey() async {
         working = true
         defer { working = false }
         error = nil
@@ -230,11 +230,11 @@ final class SignInFlow {
         } catch { self.error = AccountCopy.message(error) }
     }
 
-    var newPasswordReady: Bool {
+    public var newPasswordReady: Bool {
         PasswordStrength(newPassword) != .tooShort && newPassword == confirmPassword && !working
     }
 
-    func setNewPassword() async {
+    public func setNewPassword() async {
         guard let handle = recovery, newPasswordReady else { return }
         working = true
         defer { working = false }

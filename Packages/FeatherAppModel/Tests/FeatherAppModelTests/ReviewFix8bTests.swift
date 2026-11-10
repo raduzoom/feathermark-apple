@@ -3,7 +3,7 @@ import FeatherCrypto
 import FeatherSync
 import Foundation
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 /// Regression tests for the Phase 8 Part B review.
 @MainActor @Suite struct ReviewFix8bTests {

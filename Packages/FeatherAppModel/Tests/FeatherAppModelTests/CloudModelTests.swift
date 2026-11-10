@@ -3,7 +3,7 @@ import FeatherCrypto
 import FeatherSync
 import Foundation
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 /// Records every request any URLSession in the process makes (registered globally, and on injected sessions).
 final class RecordingProtocol: URLProtocol, @unchecked Sendable {

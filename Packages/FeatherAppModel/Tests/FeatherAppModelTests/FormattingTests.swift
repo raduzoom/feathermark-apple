@@ -1,7 +1,7 @@
 import FeatherCore
 import Foundation
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 private let locale = Locale(identifier: "en_GB")
 private let calendar: Calendar = {

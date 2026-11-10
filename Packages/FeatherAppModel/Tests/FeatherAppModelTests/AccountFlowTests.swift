@@ -3,7 +3,7 @@ import FeatherCrypto
 import FeatherSync
 import Foundation
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 @MainActor @Suite struct AccountFlowTests {
     @Test func passwordStrengthBands() {

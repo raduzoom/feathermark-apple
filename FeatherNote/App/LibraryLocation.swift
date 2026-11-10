@@ -1,3 +1,4 @@
+import FeatherAppModel
 import Foundation
 
 /// Where the one library of this install lives (design spec "Local storage").

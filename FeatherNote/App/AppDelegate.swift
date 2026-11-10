@@ -1,3 +1,4 @@
+import FeatherAppModel
 import AppKit
 import FeatherCore
 import SwiftUI
@@ -26,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         opened = Result {
             try AppModel.open(at: LibraryLocation.directory(),
                               defaults: isolated ? UserDefaults(suiteName: "app.feathermark.FeatherMark.isolated")! : .standard,
-                              cloud: .live(isolated: isolated))
+                              cloud: .live(isolated: isolated), platform: MacPlatform.make())
         }
         super.init()
     }

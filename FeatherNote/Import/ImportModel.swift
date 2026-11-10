@@ -1,3 +1,4 @@
+import FeatherAppModel
 import FeatherCore
 import FeatherImport
 import Foundation
@@ -19,12 +20,6 @@ enum ImportSource: Equatable {
     var url: URL {
         switch self { case .evernote(let u), .notion(let u), .markdownFolder(let u): u }
     }
-}
-
-enum ImportState: Equatable {
-    case running(ImportProgress, sourceName: String, sizeText: String)
-    case finished(ImportReport)
-    case failed(String)
 }
 
 extension AppModel {

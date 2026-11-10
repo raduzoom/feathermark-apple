@@ -1,3 +1,4 @@
+import FeatherAppModel
 import Carbon.HIToolbox
 import Foundation
 import Testing
@@ -53,4 +54,10 @@ import FeatherCore
         #expect(m.quickNoteShortcutError == "This shortcut is used by another app.")
         _ = other
     }
+}
+
+/// FeatherAppModel spells ⌥⌘N in numbers (it can't import Carbon); they must be Carbon's.
+@Test func quickNoteDefaultIsCarbonOptionCommandN() {
+    #expect(Shortcut.quickNoteDefault == Shortcut(keyCode: UInt32(kVK_ANSI_N), modifiers: UInt32(cmdKey | optionKey)))
+    #expect(Shortcut.quickNoteDefault.display == "⌥⌘N")
 }

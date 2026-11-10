@@ -1,3 +1,4 @@
+import FeatherAppModel
 import Foundation
 import Testing
 import FeatherCore

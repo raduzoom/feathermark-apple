@@ -2,15 +2,15 @@ import FeatherSync
 import Foundation
 
 /// The sidebar footer's lines (ui-copy.md "Sync status lines", desktop-sync-status board).
-struct SyncStatusText: Equatable {
-    var title: String
-    var detail: String?
-    var action: String?
+public struct SyncStatusText: Equatable {
+    public var title: String
+    public var detail: String?
+    public var action: String?
 
     /// The one line under the email in Settings › Sync.
-    var settingsLine: String { [title, detail].compactMap { $0 }.joined(separator: " ") }
+    public var settingsLine: String { [title, detail].compactMap { $0 }.joined(separator: " ") }
 
-    static func make(state: CloudState, status: SyncStatus, plan: CloudPlan?, selfHostedHost: String?, reauthEmail: String? = nil,
+    public static func make(state: CloudState, status: SyncStatus, plan: CloudPlan?, selfHostedHost: String?, reauthEmail: String? = nil,
                      now: Date) -> SyncStatusText {
         if state == .signedOut, reauthEmail != nil {
             return SyncStatusText(title: "Signed out of Feather Cloud", detail: "Sign in again to keep syncing.", action: "Sign In…")
@@ -48,7 +48,7 @@ struct SyncStatusText: Equatable {
         return SyncStatusText(title: "Synced", detail: ago)
     }
 
-    init(title: String, detail: String? = nil, action: String? = nil) {
+    public init(title: String, detail: String? = nil, action: String? = nil) {
         self.title = title
         self.detail = detail
         self.action = action
@@ -56,13 +56,13 @@ struct SyncStatusText: Equatable {
 }
 
 /// The banner above the note list for Feather Cloud states (ui-copy.md "Feather Cloud states").
-enum CloudBanner: Equatable {
+public enum CloudBanner: Equatable {
     case readOnly
     case trialEnding(days: Int)
     case storageNearlyFull(used: Int64, quota: Int64)
     case storageFull
 
-    var text: String {
+    public var text: String {
         switch self {
         case .readOnly:
             "Your Feather Cloud subscription has ended. Your notes are safe on this device and still arrive from your other devices, but changes made here won't upload until you subscribe. Nothing has been deleted."
@@ -77,7 +77,7 @@ enum CloudBanner: Equatable {
 
     /// Self-hosted servers show none of these: their plans and limits are the owner's. Without billing there are
     /// no plans, so no read-only or trial banners; Feather Cloud's storage still fills up, so those stay.
-    static func make(status: SyncStatus, plan: CloudPlan?, billingEnabled: Bool = true, selfHosted: Bool, now: Date) -> CloudBanner? {
+    public static func make(status: SyncStatus, plan: CloudPlan?, billingEnabled: Bool = true, selfHosted: Bool, now: Date) -> CloudBanner? {
         guard !selfHosted else { return nil }
         if billingEnabled, status == .readOnly || plan?.state == "read_only" { return .readOnly }
         if status == .quotaFull { return .storageFull }

@@ -2,7 +2,7 @@ import FeatherCore
 import FeatherSync
 import Foundation
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 @Suite struct SyncStatusTextTests {
     let now = Date(timeIntervalSince1970: 1_794_234_720)

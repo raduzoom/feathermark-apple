@@ -1,28 +1,9 @@
 import AppKit
 import Carbon.HIToolbox
+import FeatherAppModel
 
-/// A key combination for a global shortcut, in Carbon terms (`RegisterEventHotKey`).
-struct Shortcut: Equatable, Codable {
-    var keyCode: UInt32
-    var modifiers: UInt32
-
-    /// ⌥⌘N
-    static let quickNoteDefault = Shortcut(keyCode: UInt32(kVK_ANSI_N), modifiers: UInt32(cmdKey | optionKey))
-
-    /// Stored in UserDefaults as "<keyCode>:<modifiers>".
-    var stored: String { "\(keyCode):\(modifiers)" }
-
-    init(keyCode: UInt32, modifiers: UInt32) {
-        self.keyCode = keyCode
-        self.modifiers = modifiers
-    }
-
-    init?(stored: String) {
-        let parts = stored.split(separator: ":")
-        guard parts.count == 2, let k = UInt32(parts[0]), let m = UInt32(parts[1]), m != 0 else { return nil }
-        self.init(keyCode: k, modifiers: m)
-    }
-
+/// The Mac's side of `Shortcut` (FeatherAppModel): reading one from a key event, and its display name.
+extension Shortcut {
     /// From a key-down event; nil unless ⌘, ⌥ or ⌃ is held.
     init?(event: NSEvent) {
         let flags = event.modifierFlags

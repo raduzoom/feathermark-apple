@@ -3,7 +3,7 @@ import FeatherCrypto
 import FeatherSync
 import Foundation
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 /// A signed-in server for settings tests: devices, revoke, account, and empty sync answers.
 final class SettingsServerProtocol: URLProtocol, @unchecked Sendable {

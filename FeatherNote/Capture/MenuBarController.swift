@@ -1,3 +1,4 @@
+import FeatherAppModel
 import AppKit
 
 /// The menu bar extra (board `desktop-menu-bar`): New Quick Note, Open FeatherMark, a status line, Quit.

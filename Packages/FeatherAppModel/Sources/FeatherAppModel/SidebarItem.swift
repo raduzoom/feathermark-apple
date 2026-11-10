@@ -1,12 +1,12 @@
 import FeatherCore
 
 /// What the sidebar has selected.
-enum SidebarItem: Hashable, Sendable {
+public enum SidebarItem: Hashable, Sendable {
     case all, recent, pinned, trash
     case notebook(ULID)
     case tag(ULID)
 
-    var scope: NoteScope {
+    public var scope: NoteScope {
         switch self {
         case .all: .all
         case .recent: .recent

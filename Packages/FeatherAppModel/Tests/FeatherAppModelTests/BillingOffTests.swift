@@ -2,7 +2,7 @@ import FeatherCore
 import FeatherSync
 import Foundation
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 /// 1.0.0: Feather Cloud runs with billing off (roadmap, 2026-11-10).
 @MainActor @Suite struct BillingOffTests {

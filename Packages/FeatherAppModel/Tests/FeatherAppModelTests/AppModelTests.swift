@@ -1,9 +1,9 @@
-import FeatherEditor
+import FeatherEditorCore
 import FeatherCore
 import Foundation
 import Synchronization
 import Testing
-@testable import FeatherNote
+@testable import FeatherAppModel
 
 final class MovableClock: Sendable {
     let value: Atomic<Int64>
@@ -13,9 +13,10 @@ final class MovableClock: Sendable {
 }
 
 @MainActor
-func makeModel(clock: LibraryClock = .system, defaults: UserDefaults? = nil) async throws -> AppModel {
+func makeModel(clock: LibraryClock = .system, defaults: UserDefaults? = nil, platform: AppPlatform = .none) async throws -> AppModel {
     let dir = FileManager.default.temporaryDirectory.appending(path: "FNModel-\(UUID().uuidString)")
-    let model = try AppModel.open(at: dir, clock: clock, defaults: defaults ?? UserDefaults(suiteName: "FNTests-\(UUID().uuidString)")!)
+    let model = try AppModel.open(at: dir, clock: clock, defaults: defaults ?? UserDefaults(suiteName: "FNTests-\(UUID().uuidString)")!,
+                                  platform: platform)
     await model.load()
     return model
 }

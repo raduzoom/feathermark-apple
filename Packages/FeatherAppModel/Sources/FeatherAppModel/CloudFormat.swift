@@ -1,9 +1,9 @@
 import Foundation
 
 /// Sizes and relative times as the Feather Cloud screens write them ("2.4 GB of 10 GB used", "2 min ago").
-enum CloudFormat {
+public enum CloudFormat {
     /// Powers of 1,024; one decimal under 10 unless whole; "MB" or "GB".
-    static func size(_ bytes: Int64) -> String {
+    public static func size(_ bytes: Int64) -> String {
         let gb = Double(bytes) / 1_073_741_824
         let (value, unit) = gb >= 1 ? (gb, "GB") : (Double(bytes) / 1_048_576, "MB")
         let rounded = (value * 10).rounded() / 10
@@ -11,10 +11,10 @@ enum CloudFormat {
         return String(format: "%.1f %@", rounded, unit)
     }
 
-    static func usage(used: Int64, quota: Int64) -> String { "\(size(used)) of \(size(quota)) used" }
+    public static func usage(used: Int64, quota: Int64) -> String { "\(size(used)) of \(size(quota)) used" }
 
     /// "just now", "2 min ago", "3 h ago", "yesterday", "9 Nov".
-    static func ago(_ date: Date, now: Date) -> String {
+    public static func ago(_ date: Date, now: Date) -> String {
         let s = max(0, now.timeIntervalSince(date))
         switch s {
         case ..<60: return "just now"

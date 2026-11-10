@@ -2,8 +2,8 @@ import FeatherCore
 import Foundation
 
 /// Every user-visible string built from data. Pure functions: tests pass `now`, a calendar and a locale.
-enum Formatting {
-    static let day: TimeInterval = 86_400
+public enum Formatting {
+    public static let day: TimeInterval = 86_400
 
     private static func date(_ ms: Int64) -> Date { Date(timeIntervalSince1970: TimeInterval(ms) / 1000) }
 
@@ -23,7 +23,7 @@ enum Formatting {
     }
 
     /// "Today, 10:42", "Yesterday", "7 Nov", "2 Nov 2025".
-    static func listDate(_ ms: Int64, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
+    public static func listDate(_ ms: Int64, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
         let d = date(ms)
         if calendar.isDate(d, inSameDayAs: now) { return "Today, \(time(d, calendar, locale))" }
         if let y = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(d, inSameDayAs: y) { return "Yesterday" }
@@ -31,7 +31,7 @@ enum Formatting {
     }
 
     /// "Edited today at 10:42", "Edited yesterday at 09:00", "Edited 7 Nov".
-    static func editedLine(_ ms: Int64, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
+    public static func editedLine(_ ms: Int64, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
         let d = date(ms)
         if calendar.isDate(d, inSameDayAs: now) { return "Edited today at \(time(d, calendar, locale))" }
         if let y = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(d, inSameDayAs: y) {
@@ -41,7 +41,7 @@ enum Formatting {
     }
 
     /// "Deleted 3 Nov · removed in 24 days".
-    static func trashMeta(trashedAt: Int64, retentionDays: Int, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
+    public static func trashMeta(trashedAt: Int64, retentionDays: Int, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
         let d = date(trashedAt)
         let deleted: String
         if calendar.isDate(d, inSameDayAs: now) {
@@ -63,26 +63,32 @@ enum Formatting {
     }
 
     /// "Today, 10:42 · Electronics" (no notebook part at the root).
-    static func noteMeta(summary: NoteSummary, notebookName: String?, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
+    public static func noteMeta(summary: NoteSummary, notebookName: String?, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
         let when = listDate(summary.modified, now: now, calendar: calendar, locale: locale)
         return notebookName.map { "\(when) · \($0)" } ?? when
     }
 
-    static func displayTitle(_ title: String) -> String {
+    public static func displayTitle(_ title: String) -> String {
         title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : title
     }
 
-    struct Confirmation: Equatable {
-        var title: String
-        var message: String
-        var button: String
+    public struct Confirmation: Equatable {
+        public var title: String
+        public var message: String
+        public var button: String
+
+        public init(title: String, message: String, button: String) {
+            self.title = title
+            self.message = message
+            self.button = button
+        }
     }
 
     private static func count(_ n: Int, _ singular: String, _ plural: String) -> String {
         "\(n) \(n == 1 ? singular : plural)"
     }
 
-    static func deleteNotebookConfirmation(name: String, subNotebooks: Int, notes: Int) -> Confirmation {
+    public static func deleteNotebookConfirmation(name: String, subNotebooks: Int, notes: Int) -> Confirmation {
         var parts: [String] = []
         if subNotebooks > 0 {
             parts.append("Its \(count(subNotebooks, "sub-notebook", "sub-notebooks")) \(subNotebooks == 1 ? "is" : "are") deleted too")
@@ -95,18 +101,18 @@ enum Formatting {
         return Confirmation(title: "Delete “\(name)”?", message: message, button: "Delete Notebook")
     }
 
-    static func emptyTrashConfirmation(count n: Int) -> Confirmation {
+    public static func emptyTrashConfirmation(count n: Int) -> Confirmation {
         Confirmation(title: "Empty the Trash?",
                      message: "\(count(n, "note", "notes")) will be deleted for good. This can't be undone.",
                      button: "Empty Trash")
     }
 
-    static func deletePermanentlyConfirmation(title: String) -> Confirmation {
+    public static func deletePermanentlyConfirmation(title: String) -> Confirmation {
         Confirmation(title: "Delete “\(displayTitle(title))” permanently?", message: "This can't be undone.", button: "Delete Permanently")
     }
 
     /// "Groceries, pinned, Today, 08:15, Personal".
-    static func rowAccessibilityLabel(summary: NoteSummary, notebookName: String?, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
+    public static func rowAccessibilityLabel(summary: NoteSummary, notebookName: String?, now: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
         var parts = [displayTitle(summary.title)]
         if summary.pinned { parts.append("pinned") }
         parts.append(listDate(summary.modified, now: now, calendar: calendar, locale: locale))
@@ -117,12 +123,12 @@ enum Formatting {
     // MARK: Import (boards desktop-import-progress, desktop-import-report)
 
     /// "798 of 1,284 notes · 191 attachments"
-    static func importProgressLine(_ p: ImportProgress) -> String {
+    public static func importProgressLine(_ p: ImportProgress) -> String {
         "\(p.notesDone.formatted()) of \(p.notesTotal.formatted()) notes · \(p.attachments.formatted()) \(p.attachments == 1 ? "attachment" : "attachments")"
     }
 
     /// "About 2 min left" from the rate so far; nil for the first 3 seconds.
-    static func timeLeft(done: Int, total: Int, elapsed: TimeInterval) -> String? {
+    public static func timeLeft(done: Int, total: Int, elapsed: TimeInterval) -> String? {
         guard elapsed >= 3, done > 0, total >= done else { return nil }
         let remaining = elapsed / Double(done) * Double(total - done)
         if remaining < 60 { return "Less than a minute left" }
@@ -130,7 +136,7 @@ enum Formatting {
     }
 
     /// "Imported 1,284 notes and 312 attachments. 6 notes contain content …"
-    static func importSummary(_ r: ImportReport) -> String {
+    public static func importSummary(_ r: ImportReport) -> String {
         func n(_ count: Int, _ one: String, _ many: String) -> String { "\(count.formatted()) \(count == 1 ? one : many)" }
         var s = "Imported \(n(r.notes, "note", "notes")) and \(n(r.attachments, "attachment", "attachments"))."
         let kept = Set(r.preserved.map(\.noteID)).count

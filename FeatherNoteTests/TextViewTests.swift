@@ -1,3 +1,4 @@
+import FeatherAppModel
 import AppKit
 import FeatherEditor
 import Testing

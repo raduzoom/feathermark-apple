@@ -25,6 +25,8 @@ packages:
     path: Packages/FeatherEditor
   FeatherImport:
     path: Packages/FeatherImport
+  FeatherAppModel:
+    path: Packages/FeatherAppModel
 targets:
   FeatherNote:
     type: application
@@ -61,6 +63,7 @@ targets:
       - package: FeatherSync
       - package: FeatherEditor
       - package: FeatherImport
+      - package: FeatherAppModel
       - target: ShareExtension
   ShareExtension:
     type: app-extension
@@ -127,5 +130,7 @@ schemes:
         - package: FeatherCore/FeatherCoreTests
         - package: FeatherCrypto/FeatherCryptoTests
         - package: FeatherSync/FeatherSyncTests
+        - package: FeatherEditor/FeatherEditorCoreTests
         - package: FeatherEditor/FeatherEditorTests
         - package: FeatherImport/FeatherImportTests
+        - package: FeatherAppModel/FeatherAppModelTests

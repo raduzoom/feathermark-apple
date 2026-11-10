@@ -1,3 +1,4 @@
+import FeatherAppModel
 import SwiftUI
 
 /// Feather Cloud onboarding, steps 1–5 (desktop-onboarding-* boards).

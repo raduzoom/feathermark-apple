@@ -1,23 +1,23 @@
 import FeatherCore
-import FeatherEditor
+import FeatherEditorCore
 import FeatherSync
 import Foundation
 import UniformTypeIdentifiers
 import Observation
 
 /// The open note as the editor sees it.
-struct EditorState: Equatable {
-    var id: ULID
-    var title: String
-    var body: String
-    var isTrashed: Bool
-    var notebookID: ULID?
-    var tagIDs: Set<ULID>
-    var pinned: Bool
-    var modified: Int64
-    var trashedAt: Int64?
+public struct EditorState: Equatable {
+    public var id: ULID
+    public var title: String
+    public var body: String
+    public var isTrashed: Bool
+    public var notebookID: ULID?
+    public var tagIDs: Set<ULID>
+    public var pinned: Bool
+    public var modified: Int64
+    public var trashedAt: Int64?
 
-    init(_ note: Note) {
+    public init(_ note: Note) {
         id = note.id
         title = note.title
         body = note.body
@@ -32,59 +32,61 @@ struct EditorState: Equatable {
 
 /// Owns the library and every piece of UI state. Views read it and call its methods; they hold no behaviour.
 @MainActor @Observable
-final class AppModel {
-    static let retentionKey = "trashRetentionDays"
-    static let retentionChoices = [7, 14, 30, 60, 90]
+public final class AppModel {
+    public static let retentionKey = "trashRetentionDays"
+    public static let retentionChoices = [7, 14, 30, 60, 90]
 
-    let library: Library
-    let defaults: UserDefaults
+    public let library: Library
+    public let defaults: UserDefaults
+    /// Opening URLs and the global shortcut (the Mac's, the iPhone's, or none in tests).
+    public let platform: AppPlatform
     /// Feather Cloud account and sync (Phase 8).
-    private(set) var cloud: CloudModel!
+    public private(set) var cloud: CloudModel!
 
     // Sidebar
-    private(set) var selection: SidebarItem = .all
-    private(set) var notebooks: [Notebook] = []
-    private(set) var tags: [Tag] = []
-    private(set) var counts = LibraryCounts(all: 0, pinned: 0, trash: 0, notebooks: [:])
+    public private(set) var selection: SidebarItem = .all
+    public private(set) var notebooks: [Notebook] = []
+    public private(set) var tags: [Tag] = []
+    public private(set) var counts = LibraryCounts(all: 0, pinned: 0, trash: 0, notebooks: [:])
     /// Tag ids of every tagged note (for the Tags menu of any row, open or not).
-    private(set) var tagsByNote: [ULID: Set<ULID>] = [:]
+    public private(set) var tagsByNote: [ULID: Set<ULID>] = [:]
 
     // Note list and search
-    private(set) var notes: [NoteSummary] = []
-    private(set) var searchText = ""
+    public private(set) var notes: [NoteSummary] = []
+    public private(set) var searchText = ""
     /// nil when not searching.
-    private(set) var searchHits: [SearchHit]?
-    private(set) var searchTagIDs: Set<ULID> = []
-    private(set) var searchNotebookID: ULID?
+    public private(set) var searchHits: [SearchHit]?
+    public private(set) var searchTagIDs: Set<ULID> = []
+    public private(set) var searchNotebookID: ULID?
 
     // Editor
-    private(set) var selectedNoteID: ULID?
-    private(set) var editor: EditorState?
+    public private(set) var selectedNoteID: ULID?
+    public private(set) var editor: EditorState?
 
-    var lastError: String?
+    public var lastError: String?
     /// Set by New Note: the title should take keyboard focus once it appears.
-    private(set) var titleWantsFocus = false
-    func titleTookFocus() { titleWantsFocus = false }
+    public private(set) var titleWantsFocus = false
+    public func titleTookFocus() { titleWantsFocus = false }
     /// Bumped by Find (⌘F) so the list's search field takes focus.
-    private(set) var searchFocusRequest = 0
-    func requestSearchFocus() { searchFocusRequest += 1 }
+    public private(set) var searchFocusRequest = 0
+    public func requestSearchFocus() { searchFocusRequest += 1 }
 
     /// Live preview or raw Markdown (⇧⌘M), remembered across launches.
-    var editorMode: EditorMode {
+    public var editorMode: EditorMode {
         didSet { defaults.set(editorMode.rawValue, forKey: Self.editorModeKey) }
     }
-    static let editorModeKey = "editorMode"
+    public static let editorModeKey = "editorMode"
     /// Attachment files by id, for the editor (images, chips, ⌘-click).
-    private(set) var attachmentFiles: [ULID: URL] = [:]
+    public private(set) var attachmentFiles: [ULID: URL] = [:]
 
-    var trashRetentionDays: Int {
+    public var trashRetentionDays: Int {
         didSet { defaults.set(trashRetentionDays, forKey: Self.retentionKey) }
     }
 
     /// Tests only: delays the search for a given query, to provoke out-of-order results.
-    var searchDelay: (@Sendable (String) -> Duration)?
+    public var searchDelay: (@Sendable (String) -> Duration)?
     /// How long after the last keystroke an edit is saved.
-    var saveDelay: Duration = .milliseconds(500)
+    public var saveDelay: Duration = .milliseconds(500)
 
     /// The unsaved edit: which note, and its title and body at the last keystroke.
     /// `save()` writes this snapshot, never whatever note `editor` shows by then.
@@ -97,9 +99,10 @@ final class AppModel {
     private var searchGeneration = 0
     private var purgedThisLaunch = false
 
-    private init(library: Library, defaults: UserDefaults, cloud environment: CloudEnvironment) {
+    private init(library: Library, defaults: UserDefaults, cloud environment: CloudEnvironment, platform: AppPlatform) {
         self.library = library
         self.defaults = defaults
+        self.platform = platform
         let stored = defaults.integer(forKey: Self.retentionKey)
         trashRetentionDays = stored > 0 ? stored : 30
         editorMode = EditorMode(rawValue: defaults.string(forKey: Self.editorModeKey) ?? "") ?? .live
@@ -113,78 +116,73 @@ final class AppModel {
     // MARK: Quick note
 
     /// Per library, so opening another library (a test host, a UI test) never touches this one's setting.
-    static func quickNoteNotebookKey(_ library: ULID) -> String { "quickNoteNotebook-\(library)" }
-    static let quickNoteShortcutKey = "quickNoteShortcut"
+    public static func quickNoteNotebookKey(_ library: ULID) -> String { "quickNoteNotebook-\(library)" }
+    public static let quickNoteShortcutKey = "quickNoteShortcut"
 
     /// Where quick notes and captures go; nil is "No Notebook" (the root).
-    var quickNoteNotebookID: ULID? {
+    public var quickNoteNotebookID: ULID? {
         didSet { defaults.set(quickNoteNotebookID?.description, forKey: Self.quickNoteNotebookKey(library.id)) }
     }
 
-    var quickNoteShortcut: Shortcut {
+    public var quickNoteShortcut: Shortcut {
         didSet { defaults.set(quickNoteShortcut.stored, forKey: Self.quickNoteShortcutKey) }
     }
 
     /// Set when the shortcut couldn't be registered (another app holds it).
-    private(set) var quickNoteShortcutError: String?
-    private var quickNoteHotKey: HotKey?
+    public private(set) var quickNoteShortcutError: String?
+    /// The platform's registration of the shortcut; releasing it unregisters the shortcut.
+    private var quickNoteRegistration: AnyObject?
     private var quickNoteAction: (() -> Void)?
 
     /// Sets a new shortcut and registers it with the same action.
-    func changeQuickNoteShortcut(_ shortcut: Shortcut) {
+    public func changeQuickNoteShortcut(_ shortcut: Shortcut) {
         quickNoteShortcut = shortcut
         if let quickNoteAction { registerQuickNoteShortcut(action: quickNoteAction) }
     }
 
-    var noteCount: Int { counts.all }
+    public var noteCount: Int { counts.all }
 
     // MARK: Import state (Phase 5; behaviour in Import/ImportModel.swift)
 
-    var importState: ImportState?
-    var showImportSource = false
-    var importTask: Task<Void, Never>?
-    var importStarted: Date?
+    public var importState: ImportState?
+    public var showImportSource = false
+    public var importTask: Task<Void, Never>?
+    public var importStarted: Date?
     /// Tests only: a pause after each imported note, so a test can cancel mid-import.
-    var importNoteDelay: TimeInterval = 0
+    public var importNoteDelay: TimeInterval = 0
 
     /// Captures waiting to become notes (Services, Share extension). See FeatherCore `Inbox`.
-    var inbox: Inbox { Inbox(directory: library.directory.appending(path: "Inbox", directoryHint: .isDirectory)) }
-
-    /// Collects Share capture `id` (from `feathermark://inbox?id=…`) into the inbox, then files it; returns the
-    /// number of notes created.
-    @discardableResult
-    func collectHandOff(id: ULID, prefix: String = InboxHandOff.defaultPrefix) async -> Int {
-        await attempt { try InboxHandOff.collect(id: id, into: inbox, prefix: prefix) }
-        return await drainInbox()
-    }
+    public var inbox: Inbox { Inbox(directory: library.directory.appending(path: "Inbox", directoryHint: .isDirectory)) }
 
     /// Turns every pending capture into a note in the quick-note notebook; returns how many were created.
     @discardableResult
-    func drainInbox() async -> Int {
+    public func drainInbox() async -> Int {
         var created = 0
         await attempt { created = try await library.drain(inbox, into: quickNoteNotebookID).count }
         if created > 0 { await refresh() }
         return created
     }
 
-    /// Registers the quick-note shortcut system-wide, replacing any earlier registration.
-    func registerQuickNoteShortcut(action: @escaping () -> Void) {
+    /// Registers the quick-note shortcut system-wide, replacing any earlier registration. Does nothing on a
+    /// platform without global shortcuts.
+    public func registerQuickNoteShortcut(action: @escaping () -> Void) {
         quickNoteAction = action
-        quickNoteHotKey = nil
+        quickNoteRegistration = nil
+        guard let register = platform.registerQuickNoteShortcut else { return }
         do {
-            quickNoteHotKey = try HotKey(shortcut: quickNoteShortcut, action: action)
+            quickNoteRegistration = try register(quickNoteShortcut, action)
             quickNoteShortcutError = nil
         } catch {
             quickNoteShortcutError = "This shortcut is used by another app."
         }
-        if HotKey.systemShortcuts().contains(quickNoteShortcut) {
-            quickNoteHotKey = nil
+        if platform.isSystemShortcut(quickNoteShortcut) {
+            quickNoteRegistration = nil
             quickNoteShortcutError = "macOS uses this shortcut."
         }
     }
 
     /// Saves a quick note: first line as the title, the rest as the body. Whitespace-only text saves nothing.
-    func saveQuickNote(text: String, notebookID: ULID?) async -> Note? {
+    public func saveQuickNote(text: String, notebookID: ULID?) async -> Note? {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         let now = Int64(Date().timeIntervalSince1970 * 1000)
         let item = InboxItem(id: ULID.generate(at: now), kind: .text, text: text, created: now)
@@ -194,17 +192,17 @@ final class AppModel {
         return note
     }
 
-    func toggleEditorMode() { editorMode = editorMode == .live ? .raw : .live }
+    public func toggleEditorMode() { editorMode = editorMode == .live ? .raw : .live }
 
     /// The file behind a `feather://attachment/<id>` URL, if the library has it.
-    func attachmentURL(for featherURL: String) -> URL? {
+    public func attachmentURL(for featherURL: String) -> URL? {
         let prefix = "feather://attachment/"
         guard featherURL.lowercased().hasPrefix(prefix), let id = ULID(string: String(featherURL.dropFirst(prefix.count))) else { return nil }
         return attachmentFiles[id]
     }
 
     /// Adds dropped or pasted files as attachments; returns the Markdown to insert for each.
-    func addAttachments(from urls: [URL]) async -> [String] {
+    public func addAttachments(from urls: [URL]) async -> [String] {
         var snippets: [String] = []
         for url in urls {
             await attempt {
@@ -230,25 +228,26 @@ final class AppModel {
     }
 
     /// Opens a link from the editor: attachments in their default app, everything else in the browser.
-    func openLink(_ url: String) {
-        if let file = attachmentURL(for: url) { NSWorkspaceOpener.open(file) }
-        else if let u = URL(string: url), u.scheme != nil { NSWorkspaceOpener.open(u) }
+    public func openLink(_ url: String) {
+        if let file = attachmentURL(for: url) { platform.open(file) }
+        else if let u = URL(string: url), u.scheme != nil { platform.open(u) }
     }
 
-    /// `cloud` defaults to in-memory secrets: only the app itself passes the Keychain.
-    static func open(at directory: URL, clock: LibraryClock = .system, defaults: UserDefaults = .standard,
-                     cloud: CloudEnvironment = .memory) throws -> AppModel {
-        AppModel(library: try Library.open(at: directory, clock: clock), defaults: defaults, cloud: cloud)
+    /// `cloud` defaults to in-memory secrets and `platform` to none: only the app itself passes the Keychain
+    /// and its platform's abilities.
+    public static func open(at directory: URL, clock: LibraryClock = .system, defaults: UserDefaults = .standard,
+                     cloud: CloudEnvironment = .memory, platform: AppPlatform = .none) throws -> AppModel {
+        AppModel(library: try Library.open(at: directory, clock: clock), defaults: defaults, cloud: cloud, platform: platform)
     }
 
     // MARK: Derived
 
-    var isSearching: Bool { searchHits != nil }
+    public var isSearching: Bool { searchHits != nil }
 
     /// The ids the note list shows, in order.
-    var visibleIDs: [ULID] { searchHits.map { $0.map(\.note.id) } ?? notes.map(\.id) }
+    public var visibleIDs: [ULID] { searchHits.map { $0.map(\.note.id) } ?? notes.map(\.id) }
 
-    var emptyState: EmptyState? {
+    public var emptyState: EmptyState? {
         if let hits = searchHits, hits.isEmpty {
             return .noSearchResults(query: searchText, limitedTo: searchNotebookID.flatMap(notebookName))
         }
@@ -259,16 +258,16 @@ final class AppModel {
         return selectedNoteID == nil ? .noNoteSelected : nil
     }
 
-    func notebookName(_ id: ULID) -> String? { notebooks.first { $0.id == id }?.name }
-    func tagName(_ id: ULID) -> String? { tags.first { $0.id == id }?.name }
+    public func notebookName(_ id: ULID) -> String? { notebooks.first { $0.id == id }?.name }
+    public func tagName(_ id: ULID) -> String? { tags.first { $0.id == id }?.name }
 
-    func subNotebookCount(of id: ULID) -> Int {
+    public func subNotebookCount(of id: ULID) -> Int {
         let children = Dictionary(grouping: notebooks, by: \.parentID)
         func count(_ id: ULID) -> Int { (children[id] ?? []).reduce(0) { $0 + 1 + count($1.id) } }
         return count(id)
     }
 
-    var selectionTitle: String {
+    public var selectionTitle: String {
         switch selection {
         case .all: "My Notes"
         case .recent: "Recent"
@@ -282,7 +281,7 @@ final class AppModel {
     // MARK: Loading
 
     /// Reloads everything. The first call per launch also empties expired Trash.
-    func load() async {
+    public func load() async {
         await reloadAttachmentFiles()
         if !purgedThisLaunch {
             purgedThisLaunch = true
@@ -292,7 +291,7 @@ final class AppModel {
     }
 
     /// Hourly Trash purge while the app runs.
-    func startMaintenance() {
+    public func startMaintenance() {
         Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3600))
@@ -308,7 +307,7 @@ final class AppModel {
     }
 
     /// Reloads sidebar data, the list (or search) and the editor, then fixes the selection.
-    func refresh(fromSync: Bool = false) async {
+    public func refresh(fromSync: Bool = false) async {
         if !fromSync { cloud.localChanged() }   // a local change: sync 2 s after the last one
         let before = visibleIDs
         await attempt {
@@ -364,7 +363,7 @@ final class AppModel {
 
     /// After a pull. If it changed the note you're typing in (typed after the pre-sync save, so not yet saved),
     /// your text goes to a conflict copy, which stays open in front of you: neither version is overwritten.
-    func applyPulled(_ ids: Set<ULID>) async {
+    public func applyPulled(_ ids: Set<ULID>) async {
         if let p = pending, ids.contains(p.id), var mine = try? await library.note(p.id) {
             saveTask?.cancel()
             saveTask = nil
@@ -383,7 +382,7 @@ final class AppModel {
     }
 
     /// Settings › Sync conflicts › Show Note: shows the notebook or tag whose rename lost.
-    func showConflict(_ c: SyncConflict) async {
+    public func showConflict(_ c: SyncConflict) async {
         switch c.type {
         case .notebook: await select(.notebook(c.itemID))
         case .tag: await select(.tag(c.itemID))
@@ -394,7 +393,7 @@ final class AppModel {
 
     // MARK: Sidebar
 
-    func select(_ item: SidebarItem) async {
+    public func select(_ item: SidebarItem) async {
         await flush()
         selection = item
         clearSearchState()
@@ -403,12 +402,12 @@ final class AppModel {
 
     // MARK: Notes
 
-    func selectNote(_ id: ULID?) async {
+    public func selectNote(_ id: ULID?) async {
         await flush()
         await openNote(id)
     }
 
-    func newNote() async {
+    public func newNote() async {
         await flush()
         var notebookID: ULID?
         var tagIDs: Set<ULID> = []
@@ -428,14 +427,14 @@ final class AppModel {
         }
     }
 
-    func editTitle(_ title: String) {
+    public func editTitle(_ title: String) {
         guard var e = editor, !e.isTrashed, !e.title.utf8.elementsEqual(title.utf8) else { return }
         e.title = title
         editor = e
         markDirty(e)
     }
 
-    func editBody(_ body: String) {
+    public func editBody(_ body: String) {
         guard var e = editor, !e.isTrashed, !e.body.utf8.elementsEqual(body.utf8) else { return }
         e.body = body
         editor = e
@@ -456,7 +455,7 @@ final class AppModel {
 
     /// Saves a pending edit now, after any save already running. Called before anything that changes
     /// what the editor shows, and before quit.
-    func flush() async {
+    public func flush() async {
         saveTask?.cancel()
         saveTask = nil
         await save()
@@ -483,39 +482,39 @@ final class AppModel {
         }
     }
 
-    func togglePin(_ id: ULID) async {
+    public func togglePin(_ id: ULID) async {
         await change(id) { note in try await self.library.setPinned(id, !note.pinned) }
     }
 
-    func move(_ id: ULID, to notebookID: ULID?) async {
+    public func move(_ id: ULID, to notebookID: ULID?) async {
         await change(id) { _ in try await self.library.moveNote(id, to: notebookID) }
     }
 
-    func setTags(_ id: ULID, _ tagIDs: Set<ULID>) async {
+    public func setTags(_ id: ULID, _ tagIDs: Set<ULID>) async {
         await change(id) { _ in try await self.library.setTags(id, tagIDs) }
     }
 
     /// Adds or removes one tag on any note.
-    func toggleTag(_ tagID: ULID, on noteID: ULID) async {
+    public func toggleTag(_ tagID: ULID, on noteID: ULID) async {
         await change(noteID) { note in
             let tags = note.tagIDs.contains(tagID) ? note.tagIDs.subtracting([tagID]) : note.tagIDs.union([tagID])
             try await self.library.setTags(noteID, tags)
         }
     }
 
-    func trash(_ id: ULID) async {
+    public func trash(_ id: ULID) async {
         await change(id) { _ in try await self.library.trashNote(id) }
     }
 
-    func restore(_ id: ULID) async {
+    public func restore(_ id: ULID) async {
         await change(id) { _ in try await self.library.restoreNote(id) }
     }
 
-    func deletePermanently(_ id: ULID) async {
+    public func deletePermanently(_ id: ULID) async {
         await change(id) { _ in try await self.library.deleteNotePermanently(id) }
     }
 
-    func emptyTrash() async {
+    public func emptyTrash() async {
         await flush()
         await attempt { _ = try await library.emptyTrash() }
         await refresh()
@@ -533,42 +532,42 @@ final class AppModel {
 
     // MARK: Notebooks and tags
 
-    func createNotebook(name: String, parent: ULID?) async -> Notebook? {
+    public func createNotebook(name: String, parent: ULID?) async -> Notebook? {
         var created: Notebook?
         await attempt { created = try await library.createNotebook(name: name, parentID: parent) }
         await refresh()
         return created
     }
 
-    func renameNotebook(_ id: ULID, to name: String) async {
+    public func renameNotebook(_ id: ULID, to name: String) async {
         await attempt { try await library.renameNotebook(id, to: name) }
         await refresh()
     }
 
-    func moveNotebook(_ id: ULID, to parent: ULID?) async {
+    public func moveNotebook(_ id: ULID, to parent: ULID?) async {
         await attempt { try await library.moveNotebook(id, toParent: parent) }
         await refresh()
     }
 
-    func deleteNotebook(_ id: ULID) async {
+    public func deleteNotebook(_ id: ULID) async {
         await flush()
         await attempt { try await library.deleteNotebook(id) }
         await refresh()
     }
 
-    func createTag(name: String) async -> Tag? {
+    public func createTag(name: String) async -> Tag? {
         var created: Tag?
         await attempt(tagName: name) { created = try await library.createTag(name: name) }
         await refresh()
         return created
     }
 
-    func renameTag(_ id: ULID, to name: String) async {
+    public func renameTag(_ id: ULID, to name: String) async {
         await attempt(tagName: name) { try await library.renameTag(id, to: name) }
         await refresh()
     }
 
-    func deleteTag(_ id: ULID) async {
+    public func deleteTag(_ id: ULID) async {
         await flush()
         await attempt { try await library.deleteTag(id) }
         await refresh()
@@ -576,7 +575,7 @@ final class AppModel {
 
     // MARK: Search
 
-    func setSearch(_ text: String) async {
+    public func setSearch(_ text: String) async {
         searchText = text
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let before = visibleIDs
@@ -592,18 +591,18 @@ final class AppModel {
     }
 
     /// For the search field binding: shows the text at once and searches in the background.
-    func typeSearch(_ text: String) {
+    public func typeSearch(_ text: String) {
         guard text != searchText else { return }
         searchText = text
         Task { await setSearch(text) }
     }
 
-    func setSearchNotebook(_ id: ULID?) async {
+    public func setSearchNotebook(_ id: ULID?) async {
         searchNotebookID = id
         await runSearch()
     }
 
-    func toggleSearchTag(_ id: ULID) async {
+    public func toggleSearchTag(_ id: ULID) async {
         if searchTagIDs.contains(id) { searchTagIDs.remove(id) } else { searchTagIDs.insert(id) }
         await runSearch()
     }
@@ -633,7 +632,7 @@ final class AppModel {
 
     // MARK: Import and export
 
-    func importMarkdownFolder(_ url: URL) async -> ImportReport? {
+    public func importMarkdownFolder(_ url: URL) async -> ImportReport? {
         await flush()
         var report: ImportReport?
         await attempt { report = try await library.importMarkdownFolder(from: url) }
@@ -641,7 +640,7 @@ final class AppModel {
         return report
     }
 
-    func export(to url: URL, notebook: ULID?) async -> ExportReport? {
+    public func export(to url: URL, notebook: ULID?) async -> ExportReport? {
         await flush()
         var report: ExportReport?
         await attempt { report = try await library.exportMarkdown(to: url, notebookID: notebook) }
@@ -650,7 +649,8 @@ final class AppModel {
 
     // MARK: Errors
 
-    private func attempt(tagName: String? = nil, _ body: () async throws -> Void) async {
+    /// Runs `body`, showing a failure in `lastError`. Public for the platforms' own model extensions (Share hand-off).
+    public func attempt(tagName: String? = nil, _ body: () async throws -> Void) async {
         do {
             try await body()
         } catch let error as LibraryError {
@@ -660,7 +660,7 @@ final class AppModel {
         }
     }
 
-    static func message(for error: LibraryError, tagName: String?) -> String {
+    public static func message(for error: LibraryError, tagName: String?) -> String {
         switch error {
         case .duplicateTagName(let key): "A tag named “\(tagName ?? key)” already exists."
         case .notebookCycle: "A notebook can't go inside its own sub-notebook."
@@ -671,10 +671,3 @@ final class AppModel {
     }
 }
 
-import AppKit
-
-/// Opening files and URLs (wrapped so the model stays testable).
-@MainActor
-enum NSWorkspaceOpener {
-    static func open(_ url: URL) { NSWorkspace.shared.open(url) }
-}

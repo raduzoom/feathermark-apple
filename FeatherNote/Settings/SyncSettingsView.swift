@@ -1,3 +1,4 @@
+import FeatherAppModel
 import FeatherCore
 import FeatherSync
 import SwiftUI

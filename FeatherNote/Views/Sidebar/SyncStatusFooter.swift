@@ -1,3 +1,4 @@
+import FeatherAppModel
 import SwiftUI
 
 /// Sync status at the foot of the sidebar (desktop-sync-status board). Signed out, it invites the free trial.
