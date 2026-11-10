@@ -1,6 +1,6 @@
-# FeatherMark for Mac
+# FeatherMark for Apple platforms
 
-A free, native, lightweight Markdown note app for macOS 15 and later. Notes stay on your Mac in a local library and export to a plain Markdown folder at any time. Optional Feather Cloud sync is end-to-end encrypted.
+The Mac app and, from Phase 12, the iPhone and iPad app, with the Swift packages both use. FeatherMark is a free, native, lightweight Markdown note app for macOS 15 and later (iOS and iPadOS 18 to come). Notes stay on your Mac in a local library and export to a plain Markdown folder at any time. Optional Feather Cloud sync is end-to-end encrypted.
 
 ## Running
 
@@ -16,8 +16,16 @@ xcodegen generate && xcodebuild test -project FeatherNote.xcodeproj -scheme Feat
 
 ## Packages
 
+Shared by the Mac app and the iPhone and iPad app (macOS 15 and iOS 18) unless noted:
+
 - `FeatherCore`: the local library. SQLite with full-text search, notebooks, tags, Trash, attachments, the change log sync reads, and export to and import from a Markdown folder. `fncore` is its command-line harness.
-- `FeatherCrypto`, `FeatherSync`, `FeatherEditor`, `FeatherImport`: placeholders, filled in by later phases.
+- `FeatherCrypto`: end-to-end encryption (keys, envelopes, Argon2id) and the Keychain stores.
+- `FeatherSync`: the Feather Cloud client and sync engine.
+- `FeatherEditor`: the live-preview Markdown editor. `FeatherEditorCore` is shared; the AppKit view is macOS only.
+- `FeatherAppModel`: the app's behaviour (`AppModel`), Feather Cloud accounts and settings.
+- `FeatherImport`: Evernote and Notion import (macOS only).
+
+Run every check, macOS and iOS: `bash scripts/test_all.sh`.
 
 ## Related repositories
 

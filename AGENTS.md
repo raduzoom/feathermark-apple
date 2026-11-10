@@ -1,10 +1,16 @@
-# FeatherMark for Mac: agent rules
+# FeatherMark for Apple platforms: agent rules
 
-Rules for AI agents in this repo. `CLAUDE.md` is a symlink to this file. The shared rules for all three FeatherMark repos are in `../AGENTS.md`; global rules in `~/Dropbox/Configs/claude/AGENTS.md` still apply.
+Rules for AI agents in this repo (`feathermark-apple`, folder `apple/`: the Mac app, the iPhone and iPad app from Phase 12, and the Swift packages both use). `CLAUDE.md` is a symlink to this file. The shared rules for all FeatherMark repos are in `../AGENTS.md`; global rules in `~/Dropbox/Configs/claude/AGENTS.md` still apply.
 
 ## Build and test (before saying a change works)
 
-From this repo's root (the `.xcodeproj` is generated, never committed):
+Everything, macOS and iOS, stopping at the first failure (the local stand-in for "CI green"; prints `all tests: OK`):
+
+```bash
+bash scripts/test_all.sh
+```
+
+The Mac app alone, from this repo's root (the `.xcodeproj` is generated, never committed):
 
 ```bash
 xcodegen generate && xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherNote -destination 'platform=macOS'
@@ -18,6 +24,20 @@ xcodebuild build -project FeatherNote.xcodeproj -scheme FeatherNote -configurati
 
 A single package: `swift test --package-path Packages/<Name>`.
 
+The shared packages on an iOS simulator (the first available iPhone, or `FEATHER_IOS_DESTINATION`; stops at the first failure). Install a simulator runtime first if `xcrun simctl list runtimes` is empty: `xcodebuild -downloadPlatform iOS`.
+
+```bash
+bash scripts/test_ios_packages.sh
+```
+
+One package on iOS, from its folder (a package with two products, like FeatherCore, uses the `<Name>-Package` scheme):
+
+```bash
+xcodebuild test -scheme <Name> -destination 'platform=iOS Simulator,name=iPhone 17' -quiet
+```
+
+On the simulator, Keychain tests skip with `errSecMissingEntitlement` (package tests have no entitlements), and the macOS performance gates and macOS-only tests (`Process`, the local server) are skipped or not compiled.
+
 FeatherCore's performance gate (search and listing 10k notes under 50 ms) is the release build; debug runs only catch large regressions:
 
 ```bash
@@ -29,6 +49,21 @@ swift test -c release --package-path Packages/FeatherCore --filter PerformanceTe
 ```bash
 swift run --package-path Packages/FeatherCore fncore list <library-dir>
 ```
+
+## Code layout (when adding code, or deciding where it goes)
+
+| Package | Platforms | Owns |
+|---|---|---|
+| `FeatherCore` | macOS, iOS | The library: SQLite, FTS5, notebooks, tags, Trash, attachments, change log, export, inbox. `fncore` (macOS). |
+| `FeatherCrypto` | macOS, iOS | Keys, envelopes, Argon2id, the Keychain stores. |
+| `FeatherSync` | macOS, iOS | Codec, API client, account service, sync engine. |
+| `FeatherEditor` | macOS, iOS | `FeatherEditorCore` (both): parser, styler, theme, commands, block menu state, the TextKit 2 layout fragment, `Platform.swift`. `FeatherEditor` (macOS): the AppKit `EditorTextView`, block menu panel, image cache; it re-exports the core. |
+| `FeatherImport` | macOS | Evernote and Notion importers (import is Mac-only). |
+| `FeatherAppModel` | macOS, iOS | `AppModel`, `CloudModel`, account flows, dialogs, formatting, `Shortcut`, `AppPlatform`. |
+
+- Behaviour goes in FeatherAppModel; views only read the model and call it. Platform abilities come in through `AppPlatform` (`FeatherNote/App/MacPlatform.swift` on the Mac; `.none` in tests). Mac-only behaviour that needs AppKit stays in the app as an `extension AppModel` (Share hand-off, import).
+- Editor logic goes in FeatherEditorCore. Never name `NS*` or `UI*` UI types there (`NSFont`, `NSColor`, `NSImage`, `NSBezierPath`…); use `Platform*` and the helpers in `Platform.swift`, which call exactly the AppKit API on macOS.
+- Each shared package is tested on both platforms (`scripts/test_ios_packages.sh` for iOS). Timing tests and the performance gates run on macOS; on the simulator they show as skipped.
 
 ## Dropbox (after cloning, after a build, and after git work)
 
@@ -48,6 +83,7 @@ Specs, crypto test vectors, designs and the roadmap live in the `universal` repo
 | App product name | `FeatherMark` (renamed from Feather Note, 2026-11-10; identifiers keep the old name only where users never see them: the `FeatherNote` module and scheme, and the repo name. The bundle id, Keychain services and URL scheme carry the new name; `LibraryLocation` moves an old `Application Support/Feather Note` library once) |
 | Version | `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `project.yml` |
 | Minimum OS | macOS 15; Release builds are universal (arm64 + x86_64) |
+| iPhone and iPad | iOS and iPadOS 18, one universal app (Phase 12), the same bundle id as the Mac (`app.feathermark.FeatherMark`) for a later universal purchase |
 | Swift tests | Swift Testing (`import Testing`); XCTest only for UI tests |
 | Signing | Ad hoc locally, `CODE_SIGNING_ALLOWED=NO` in CI; Developer ID in Phase 10 |
 | Swift packages | One per module under `Packages/`; product, target and `<Name>Tests` names are fixed because `project.yml` refers to them |
@@ -55,7 +91,7 @@ Specs, crypto test vectors, designs and the roadmap live in the `universal` repo
 
 ## The app (when changing anything under FeatherNote/)
 
-- `AppModel` (`FeatherNote/Model/`) owns every behaviour and all UI state; views only read it and call its methods. Test behaviour through `AppModel` in `FeatherNoteTests` (Swift Testing, hosted by the app), not through views.
+- `AppModel` (`Packages/FeatherAppModel`) owns every behaviour and all UI state; views only read it and call its methods. Test behaviour through `AppModel` in `FeatherAppModelTests` (runs on macOS and iOS), not through views; Mac-only behaviour (hot keys, capture, import, views) is tested in `FeatherNoteTests` (hosted by the app), whose `makeModel` opens the model with `MacPlatform.make()`.
 - The main window is an AppKit `NSWindow` hosting SwiftUI, created in `AppDelegate`. SwiftUI's `Window`/`WindowGroup` scene opened no window unless the app was launched through LaunchServices, so XCUITest and shell launches showed nothing.
 - The text views (FeatherEditor's `EditorTextView`, `TitleEditor`) must keep every macOS substitution off (`applyNoSubstitutions()` / `disableSubstitutions()`); `editorTextViewHasNoSubstitutions` guards it.
 - Never let SwiftUI measure a view with `.fixedSize(vertical:)` or an unbounded height: during min-size probing at near-zero widths it reports a huge height and the whole window content shifts upward.
@@ -83,7 +119,7 @@ TEST_RUNNER_FEATHER_SHOT_LIB=<seeded library dir> xcodebuild test -project Feath
 - Performance gate (release; debug only catches large regressions): `swift test -c release --package-path Packages/FeatherEditor --filter PerformanceTests`. Budgets (the benchmark warms AppKit up first, as the app does at launch): open a 50k-word note < 150 ms, keystroke median < 4 ms and p99 < 16 ms, hostile inputs < 1 s. `timeout`/`alarm` around `swift test` leaves `swiftpm-testing-helper` running: `pkill -f swiftpm-testing-helper` afterwards.
 - Screenshots of the editor without UI automation: `FEATHER_SHOT_DIR=<dir> swift test --package-path Packages/FeatherEditor --filter RenderShotsTests`, then compare with `../universal/design/handoff/screens/desktop-editor-*`.
 - Block menu ("+" in the margin, "/" at a line start): every choice is a pure `EditorCommands.block` edit that replaces the caret's line, so the pick and its "/query" are one undo step. "/" opens only where `slashOpensMenu` says (the line's text begins, outside code and source blocks), in live mode. Image or file and scan go through `importAndInsert` with an anchor taken at the pick. The panel never takes focus when opened by "/"; the editor forwards arrows, Return and Esc (`doCommand(by:)`).
-- To add a corpus file: drop a `.md` file into `Packages/FeatherEditor/Tests/FeatherEditorTests/Fixtures/corpus/`. Every corpus test (round trip, incremental-vs-full parse, nesting limit untouched) picks it up.
+- To add a corpus file: drop a `.md` file into `Packages/FeatherEditor/Tests/FeatherEditorTestSupport/Fixtures/corpus/`. Every corpus test (round trip, incremental-vs-full parse, nesting limit untouched), on macOS and iOS, picks it up.
 
 ## Capture (when changing quick note, Services, the Share extension or scans)
 
@@ -130,7 +166,7 @@ FEATHER_SYNC_SERVER=http://127.0.0.1:8420 swift test --package-path Packages/Fea
 - The tests read `../universal/test-vectors/` (or the folder in `FEATHER_TEST_VECTORS`) and fail when it's missing; never copy vector values into code.
 - `Sodium.swift` is the only file that calls libsodium (swift-sodium's `Clibsodium`, pinned to 0.9.1). Functions that use randomness have an internal overload taking the nonce or salt, for the vectors.
 - Data from a server, a file or the user fails with one of `CryptoError`'s three kinds; a caller's bad argument throws `InvalidArgument` before any crypto runs. Only the v1 Argon2id parameters are accepted.
-- The master key is stored by `KeychainMasterKeyStore` in the file-based keychain, this Mac only; switch to the data protection keychain with Developer ID (Phase 10). Tests use their own service name or `InMemoryMasterKeyStore`.
+- The master key is stored by `KeychainMasterKeyStore`, this device only. iOS has only the data protection keychain; macOS still uses the file-based one, because an ad-hoc-signed process gets `errSecMissingEntitlement` (-34018) there: switch with Developer ID (Phase 10). Tests use their own service name or `InMemoryMasterKeyStore`; the Keychain round trips run only where `KeychainProbe.available` (skipped on the iOS simulator, never silently passed).
 
 ## FeatherCore (when changing the library code)
 

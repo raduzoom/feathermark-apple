@@ -16,11 +16,11 @@ jobs:
     runs-on: macos-15
     defaults:
       run:
-        working-directory: mac
+        working-directory: apple
     steps:
       - uses: actions/checkout@v4
         with:
-          path: mac
+          path: apple
       # FeatherCrypto's tests read ../universal/test-vectors/. The universal repo is private: UNIVERSAL_READ_TOKEN
       # is a fine-grained, read-only token for raduzoom/feather-note-universal, created by the repo owner.
       # Until that secret exists, this step fails.
@@ -37,3 +37,24 @@ jobs:
         run: xcodegen generate
       - name: Build and test
         run: xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherNote -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
+
+  # The shared packages on an iOS simulator. TODO(ci): manual runs only, like build-test above.
+  ios-packages:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: apple
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: apple
+      # FeatherCrypto's vector tests read ../universal/test-vectors/ (see build-test).
+      - uses: actions/checkout@v4
+        with:
+          repository: raduzoom/feather-note-universal
+          path: universal
+          token: ${{ secrets.UNIVERSAL_READ_TOKEN }}
+      - name: Show Xcode version
+        run: xcodebuild -version
+      - name: Test the shared packages on iOS
+        run: bash scripts/test_ios_packages.sh
