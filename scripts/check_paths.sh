@@ -5,7 +5,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-files=(../AGENTS.md AGENTS.md README.md .github ../server/AGENTS.md ../server/docs ../website/AGENTS.md ../universal/AGENTS.md ../universal/README.md ../universal/plans/feather-note-roadmap.md)
+files=(../AGENTS.md AGENTS.md README.md .github ../server/AGENTS.md ../server/README.md ../server/docs ../website/AGENTS.md ../website/README.md ../website/site ../universal/AGENTS.md ../universal/README.md ../universal/plans/feather-note-roadmap.md)
 existing=()
 for f in "${files[@]}"; do [ -e "$f" ] && existing+=("$f"); done
 
