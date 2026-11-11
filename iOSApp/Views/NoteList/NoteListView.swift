@@ -6,6 +6,7 @@ import SwiftUI
 struct NoteListView: View {
     let model: AppModel
     let openNote: (ULID) -> Void
+    let newNote: () -> Void
     @State private var sheet: NoteSheet?
     @State private var confirmEmptyTrash = false
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -51,7 +52,8 @@ struct NoteListView: View {
         switch model.emptyState {
         case .firstLaunch:
             EmptyStateView(title: "A quiet place to write.",
-                           message: "Your notes stay on this \(DeviceWord.current). No account, no network, nothing in the way.")
+                           message: "Your notes stay on this \(DeviceWord.current). No account, no network, nothing in the way.",
+                           action: ("Write Your First Note", newNote), primary: true)
         case .emptyView:
             EmptyStateView(title: "Nothing here yet", message: "Notes you add here will show up in this list.")
         case .emptyTrash:
@@ -110,11 +112,26 @@ struct NoteListView: View {
                 UndoToast(offer: undo) { Task { await model.undoLastTrash() } }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            if !model.isSearching && model.selection != .trash && !model.notes.isEmpty {
-                Text("\(model.notes.count) \(model.notes.count == 1 ? "note" : "notes") · on this \(DeviceWord.current) only")
-                    .font(.footnote)
-                    .foregroundStyle(Theme.textSecondary)
+            if model.selection != .trash && model.emptyState != .firstLaunch {
+                HStack(spacing: 0) {
+                    Color.clear.frame(width: 44, height: 44)
+                    Group {
+                        if !model.isSearching && !model.notes.isEmpty {
+                            Text("\(model.notes.count) \(model.notes.count == 1 ? "note" : "notes") · on this \(DeviceWord.current) only")
+                                .font(.footnote)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
                     .frame(maxWidth: .infinity, minHeight: 44)
+                    Button(action: newNote) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.title3)
+                            .foregroundStyle(Theme.accent)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("New Note")
+                }
+                .padding(.horizontal, Theme.s8)
             }
         }
         .animation(.default, value: model.undoTrash)

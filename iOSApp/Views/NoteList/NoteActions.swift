@@ -4,7 +4,7 @@ import FeatherCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The note a row, menu or reader acts on.
+/// The note a row, menu or editor acts on.
 struct NoteRef: Equatable {
     var id: ULID
     var title: String
@@ -27,7 +27,7 @@ enum NoteSheet: Identifiable {
     }
 }
 
-/// One source for the swipe actions, the long-press menu and the reader's ⋯ menu (board
+/// One source for the swipe actions, the long-press menu and the editor's ⋯ menu (board
 /// mobile-note-actions-menu-ios-light).
 @MainActor enum NoteActions {
     @ViewBuilder static func menu(_ summary: NoteSummary, model: AppModel, sheet: Binding<NoteSheet?>) -> some View {

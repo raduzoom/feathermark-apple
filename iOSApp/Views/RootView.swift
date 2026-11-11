@@ -2,7 +2,7 @@ import FeatherAppModel
 import FeatherCore
 import SwiftUI
 
-/// Library, note list and note: side by side on iPad (landscape; in portrait the library slides in from the
+/// Library, note list and note editor: side by side on iPad (landscape; in portrait the library slides in from the
 /// sidebar button), a stack on iPhone. The model owns the selection; this view only decides which column shows
 /// on iPhone.
 struct RootView: View {
@@ -18,7 +18,7 @@ struct RootView: View {
         NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
             LibraryView(model: model, open: open, openNote: openNote, showSettings: $showSettings)
         } content: {
-            NoteListView(model: model, openNote: openNote)
+            NoteListView(model: model, openNote: openNote, newNote: newNote)
         } detail: {
             NoteDetailColumn(model: model)
         }
@@ -44,6 +44,16 @@ struct RootView: View {
         Task { await model.selectNote(id) }
         compactColumn = .detail
     }
+
+    /// New Note: a new note opens with its title focused (and, on iPhone, is pushed).
+    private func newNote() {
+        Task {
+            await model.newNote()
+            guard let id = model.selectedNoteID else { return }
+            pushedNoteID = id
+            compactColumn = .detail
+        }
+    }
 }
 
 /// The detail column: the open note, or a hint on iPad when none is open.
@@ -52,9 +62,9 @@ struct NoteDetailColumn: View {
 
     var body: some View {
         if let editor = model.editor {
-            ReaderView(model: model, editor: editor)
+            NoteEditorView(model: model, editor: editor)
         } else {
-            EmptyStateView(title: "No note open", message: "Select a note to read it.")
+            EmptyStateView(title: "No note open", message: "Select a note, or start a new one.")
                 .background(GlassBackground())
         }
     }

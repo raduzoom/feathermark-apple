@@ -42,8 +42,13 @@ final class ScreenshotUITests: FeatherUITestCase {
             bread.swipeRight()   // closes the revealed actions
 
             row("Weather station build").tap()
-            waitFor(app.descendants(matching: .any)["reader"], 5)
-            shot("reader", scheme)
+            let body = app.textViews["note-body"]
+            waitFor(body, 5)
+            shot("editor", scheme)
+            body.tap()   // the keyboard and the formatting bar
+            waitFor(app.buttons["Bold"], 5)
+            shot("editor-keyboard", scheme)
+            if app.buttons["Done"].exists { app.buttons["Done"].tap() }
 
             showLibrary()
             app.buttons["Settings"].tap()

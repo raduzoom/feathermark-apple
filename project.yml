@@ -153,6 +153,8 @@ targets:
       - package: FeatherCore
       - package: FeatherEditor
         product: FeatherEditorCore
+      - package: FeatherEditor
+        product: FeatherEditorPhone
       - package: FeatherAppModel
   FeatherMarkiOSTests:
     type: bundle.unit-test

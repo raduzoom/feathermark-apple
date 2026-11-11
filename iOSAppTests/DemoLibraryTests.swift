@@ -1,3 +1,5 @@
+// The demo library is compiled into debug builds only (a Release test run measures speed).
+#if DEBUG
 import FeatherCore
 import Foundation
 import Testing
@@ -36,3 +38,4 @@ import Testing
         #expect(try await library.counts().all == 6)
     }
 }
+#endif

@@ -46,6 +46,16 @@ final class RecordingProtocol: URLProtocol, @unchecked Sendable {
         #expect(model.cloud.environment.deviceName == DeviceWord.current)
     }
 
+    /// A fresh temporary library starts with fresh settings: a UI test that leaves Markdown mode on must not change
+    /// the next run.
+    @Test func temporaryLibraryStartsWithFreshSettings() async throws {
+        let suite = try #require(UserDefaults(suiteName: AppBootstrap.isolatedDefaultsSuite))
+        suite.set("raw", forKey: AppModel.editorModeKey)
+        let model = try await AppBootstrap.makeModel(arguments: ["app", "-FeatherTemporaryLibrary"])
+        #expect(model.editorMode == .live)
+        #expect(suite.string(forKey: AppModel.editorModeKey) == nil)
+    }
+
     @Test func seedNeedsAnIsolatedRun() async throws {
         // -FeatherSeedDemo on the real library would write demo notes into someone's notes: it must be ignored.
         #expect(!AppBootstrap.shouldSeed(arguments: ["app", "-FeatherSeedDemo"], environment: [:]))

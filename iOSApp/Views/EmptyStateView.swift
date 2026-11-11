@@ -5,6 +5,8 @@ struct EmptyStateView: View {
     let title: String
     let message: String
     var action: (label: String, run: () -> Void)?
+    /// The screen's one main action: navy fill (Mint Glass).
+    var primary = false
 
     var body: some View {
         VStack(spacing: Theme.s16) {
@@ -20,10 +22,18 @@ struct EmptyStateView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 360)
             if let action {
-                Button(action.label, action: action.run)
-                    .buttonStyle(.bordered)
-                    .tint(Theme.accent)
-                    .frame(minHeight: 44)
+                if primary {
+                    Button(action.label, action: action.run)
+                        .buttonStyle(.borderedProminent)
+                        .tint(Theme.primaryFill)
+                        .foregroundStyle(Theme.onPrimary)
+                        .frame(minHeight: 44)
+                } else {
+                    Button(action.label, action: action.run)
+                        .buttonStyle(.bordered)
+                        .tint(Theme.accent)
+                        .frame(minHeight: 44)
+                }
             }
         }
         .padding(Theme.s32)
