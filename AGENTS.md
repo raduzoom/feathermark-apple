@@ -4,7 +4,7 @@ Rules for AI agents in this repo (`feathermark-apple`, folder `apple/`: the Mac 
 
 ## Build and test (before saying a change works)
 
-Everything, macOS and iOS, stopping at the first failure (the local stand-in for "CI green"; prints `all tests: OK`):
+Everything, macOS and iOS (the shared packages, the Mac app, the iPhone and iPad app, and iOS 18 when that runtime is installed), stopping at the first failure (the local stand-in for "CI green"; prints `all tests: OK`):
 
 ```bash
 bash scripts/test_all.sh
@@ -14,6 +14,12 @@ The Mac app alone, from this repo's root (the `.xcodeproj` is generated, never c
 
 ```bash
 xcodegen generate && xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherNote -destination 'platform=macOS'
+```
+
+The iPhone and iPad app alone (unit and UI tests; run it on an iPad too, e.g. `name=iPad Pro 11-inch (M5)`):
+
+```bash
+xcodegen generate && xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherMarkiOS -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 Release build and universal check:
@@ -61,7 +67,8 @@ swift run --package-path Packages/FeatherCore fncore list <library-dir>
 | `FeatherImport` | macOS | Evernote and Notion importers (import is Mac-only). |
 | `FeatherAppModel` | macOS, iOS | `AppModel`, `CloudModel`, account flows, dialogs, formatting, `Shortcut`, `AppPlatform`. |
 
-- Behaviour goes in FeatherAppModel; views only read the model and call it. Platform abilities come in through `AppPlatform` (`FeatherNote/App/MacPlatform.swift` on the Mac; `.none` in tests). Mac-only behaviour that needs AppKit stays in the app as an `extension AppModel` (Share hand-off, import).
+- Apps: the Mac app is the `FeatherNote` target in `FeatherNote/` (with `ShareExtension/`); the iPhone and iPad app is the `FeatherMarkiOS` target in `iOSApp/` (tests in `iOSAppTests/` and `Tests/iOSUI/`). Both come from the one `project.yml`.
+- Behaviour goes in FeatherAppModel; views only read the model and call it. Platform abilities come in through `AppPlatform` (`FeatherNote/App/MacPlatform.swift` on the Mac, `iOSApp/App/IOSPlatform.swift` on iPhone and iPad; `.none` in tests). Mac-only behaviour that needs AppKit stays in the app as an `extension AppModel` (Share hand-off, import).
 - Editor logic goes in FeatherEditorCore. Never name `NS*` or `UI*` UI types there (`NSFont`, `NSColor`, `NSImage`, `NSBezierPath`…); use `Platform*` and the helpers in `Platform.swift`, which call exactly the AppKit API on macOS.
 - Each shared package is tested on both platforms (`scripts/test_ios_packages.sh` for iOS). Timing tests and the performance gates run on macOS; on the simulator they show as skipped.
 
@@ -80,10 +87,10 @@ Specs, crypto test vectors, designs and the roadmap live in the `universal` repo
 | Decision | Value |
 |---|---|
 | Bundle id prefix | `app.feathermark` (app: `app.feathermark.FeatherMark`; switched from `app.feathernote` on 2026-11-10, before any release; registered in the developer account with the App Group `group.app.feathermark`) |
-| App product name | `FeatherMark` (renamed from Feather Note, 2026-11-10; identifiers keep the old name only where users never see them: the `FeatherNote` module and scheme, and the repo name. The bundle id, Keychain services and URL scheme carry the new name; `LibraryLocation` moves an old `Application Support/Feather Note` library once) |
+| App product name | `FeatherMark` (renamed from Feather Note, 2026-11-10; identifiers keep the old name only where users never see them: the Mac app's `FeatherNote` module, scheme and folder. The bundle id, Keychain services and URL scheme carry the new name; `LibraryLocation` moves an old `Application Support/Feather Note` library once) |
 | Version | `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `project.yml` |
 | Minimum OS | macOS 15; Release builds are universal (arm64 + x86_64) |
-| iPhone and iPad | iOS and iPadOS 18, one universal app (Phase 12), the same bundle id as the Mac (`app.feathermark.FeatherMark`) for a later universal purchase |
+| iPhone and iPad | iOS and iPadOS 18, one universal app (Phase 12), the same bundle id as the Mac (`app.feathermark.FeatherMark`) for a later universal purchase. Target and scheme `FeatherMarkiOS` (module `FeatherMarkiOS`, product `FeatherMark`); device builds sign with team `T6ASVW97L9` |
 | Swift tests | Swift Testing (`import Testing`); XCTest only for UI tests |
 | Signing | Ad hoc locally, `CODE_SIGNING_ALLOWED=NO` in CI; Developer ID in Phase 10 |
 | Swift packages | One per module under `Packages/`; product, target and `<Name>Tests` names are fixed because `project.yml` refers to them |
@@ -104,6 +111,25 @@ TEST_RUNNER_FEATHER_SHOT_LIB=<seeded library dir> xcodebuild test -project Feath
 ```
 
   Images land in `~/Library/Containers/app.feathermark.FeatherNoteUITests.xctrunner/Data/tmp/shots/`. Seed a library with `fncore init` and `fncore import <dir> <markdown folder>`. Don't use `screencapture`: it asks the user for screen-recording permission.
+
+## The iPhone and iPad app (when changing anything under iOSApp/)
+
+- Views only: behaviour goes in FeatherAppModel (Phase 12 added `trashWithUndo`, `searchAll`, `filterChips`, `NoteThumbnail`, `Formatting.exportSummary`). `AppBootstrap.makeModel` opens the model the way the app does; the app shows `RootView`, a `NavigationSplitView` (library, note list, reader) that is a stack on iPhone.
+- No network yet: nothing calls `cloud.restoreAtLaunch()` until sync (Phase 15). `appMakesNoRequestAtLaunch` guards it.
+- The library is `Application Support/FeatherMark`, created with file protection `completeUntilFirstUserAuthentication` (`LibraryLocation.prepare`). The simulator reports no protection class, so that test records a known issue there; check it on a device.
+- Launch arguments for tests only: `-FeatherTemporaryLibrary` (a fresh library in the app's own tmp), `-FeatherLibraryPath <dir>`, `-FeatherSeedDemo` (debug builds, isolated runs only: the notes the mobile boards show, `DemoLibrary`), `-FeatherColorScheme light|dark`. Isolated runs use the `app.feathermark.FeatherMark.isolated` defaults suite, which persists between runs on one simulator: tests must not depend on its values.
+- The reader is a read-only TextKit 2 `UITextView` built by hand (`NSTextContentStorage` + `NSTextLayoutManager`), fed by `MarkdownStyler.styledText` (whole note, no caret, every marker hidden) and drawn with `DecoratedLayoutFragment`. Never touch its `layoutManager`. Links, checkboxes and attachments aren't tappable until the editor (Phase 13).
+- iPad: the three columns sit side by side in landscape; in portrait the system hides the library behind the sidebar button. On iOS 27 the library floats over the list column, so a right swipe on a row reveals Pin but can't travel far enough for a full swipe.
+- Searching from the library shows results in the library column (as Notes does); iOS 27 puts that field at the bottom. The list's own field searches within the open view, scoped as on the Mac.
+- Export goes through the Files picker (`.fileMover`); each export's folder is "FeatherMark Export <date> <time>", because the picker can't merge into a folder that's already there.
+- UI tests: iPad runs in landscape (`FeatherUITestCase.setUp`). On iOS 27 a list row's label is on its button, not its cell (`row(_:)` matches either), and `swipeLeft()` isn't a full swipe (`fullSwipe`). xcodebuild can hang after a failing UI test: `scripts/test_all.sh` stops it after 5 silent minutes.
+- Screenshots of the designed screens (`ios-<screen>-<iphone|ipad>-<light|dark>.png`), compared with `../universal/design/handoff/screens/mobile-*-ios-*`:
+
+```bash
+TEST_RUNNER_FEATHER_SHOT_DIR=<dir> xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherMarkiOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:FeatherMarkiOSUITests/ScreenshotUITests
+```
+
+- iOS 18 (the minimum): Xcode 27 can't download an iOS 18 simulator runtime (`xcodebuild -downloadPlatform iOS -buildVersion 18.x` says it isn't available). Download the iOS 18 Simulator Runtime from developer.apple.com and add it with `xcrun simctl runtime add <dmg>`; `scripts/test_all.sh` then runs the packages and the app on it (`scripts/ios18_destination.sh`).
 
 ## FeatherEditor (when changing the editor package)
 

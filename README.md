@@ -1,10 +1,10 @@
 # FeatherMark for Apple platforms
 
-The Mac app and, from Phase 12, the iPhone and iPad app, with the Swift packages both use. FeatherMark is a free, native, lightweight Markdown note app for macOS 15 and later (iOS and iPadOS 18 to come). Notes stay on your Mac in a local library and export to a plain Markdown folder at any time. Optional Feather Cloud sync is end-to-end encrypted.
+The Mac app and, from Phase 12, the iPhone and iPad app, with the Swift packages both use. FeatherMark is a free, native, lightweight Markdown note app for macOS 15 and later, and for iPhone and iPad (iOS and iPadOS 18 and later; in progress). Notes stay on your Mac in a local library and export to a plain Markdown folder at any time. Optional Feather Cloud sync is end-to-end encrypted.
 
 ## Running
 
-Open the generated project in Xcode and run the FeatherNote scheme, or build from the command line (below). The library lives in `~/Library/Application Support/FeatherMark/`.
+Open the generated project in Xcode and run the FeatherNote scheme (the Mac app) or the FeatherMarkiOS scheme (the iPhone and iPad app, `iOSApp/`), or build from the command line (below). On the Mac the library lives in `~/Library/Application Support/FeatherMark/`; on iPhone and iPad, in the app's Application Support folder.
 
 ## Building
 
@@ -12,6 +12,12 @@ Needs Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
 xcodegen generate && xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherNote -destination 'platform=macOS'
+```
+
+The iPhone and iPad app in the simulator:
+
+```bash
+xcodegen generate && xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherMarkiOS -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 ## Packages
