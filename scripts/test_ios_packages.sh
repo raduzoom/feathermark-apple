@@ -64,6 +64,7 @@ for entry in "${schemes[@]}"; do
     echo "FAILED: iOS tests for $package (log: $log)" >&2
     exit 1
   fi
-  grep -E '^✔ Test run with' "$log" | tail -n 1
+  # a package with several test targets (FeatherEditor: core, Mac view, iPhone view) prints one line each
+  grep -E '^✔ Test run with' "$log"
 done
 echo "iOS packages: OK"

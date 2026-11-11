@@ -27,7 +27,7 @@ Shared by the Mac app and the iPhone and iPad app (macOS 15 and iOS 18) unless n
 - `FeatherCore`: the local library. SQLite with full-text search, notebooks, tags, Trash, attachments, the change log sync reads, and export to and import from a Markdown folder. `fncore` is its command-line harness.
 - `FeatherCrypto`: end-to-end encryption (keys, envelopes, Argon2id) and the Keychain stores.
 - `FeatherSync`: the Feather Cloud client and sync engine.
-- `FeatherEditor`: the live-preview Markdown editor. `FeatherEditorCore` is shared; the AppKit view is macOS only.
+- `FeatherEditor`: the live-preview Markdown editor. `FeatherEditorCore` is shared; the AppKit view (`FeatherEditor`) is macOS only and the UIKit view with its formatting bar (`FeatherEditorPhone`) is iPhone and iPad only.
 - `FeatherAppModel`: the app's behaviour (`AppModel`), Feather Cloud accounts and settings.
 - `FeatherImport`: Evernote and Notion import (macOS only).
 
