@@ -2,7 +2,7 @@ import Foundation
 
 /// Word-processor behaviour as pure text edits. Each returns nil when it doesn't apply (default handling then).
 public enum EditorCommands {
-    public struct Edit: Equatable {
+    public struct Edit: Equatable, Sendable {
         public var range: NSRange
         public var replacement: String
         public var selection: NSRange
@@ -13,7 +13,7 @@ public enum EditorCommands {
         }
     }
 
-    public struct Line {
+    public struct Line: Sendable {
         public var range: NSRange        // without the line ending
         public var ending: String        // "\n", "\r\n", "\r" or ""
         public var text: String

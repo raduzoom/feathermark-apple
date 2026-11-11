@@ -6,7 +6,8 @@ import UIKit
 
 public enum EditorMode: String, Sendable { case live, raw }
 
-/// One attribute run the editor applies to its text storage.
+/// One attribute run the editor applies to its text storage. Not Sendable: its values are `AnyHashable`
+/// (fonts, colours, paragraph styles), which carry no Sendable guarantee; runs stay on the main actor.
 public struct StyleRun: Equatable {
     public var range: NSRange
     public var attributes: [NSAttributedString.Key: AnyHashable]
@@ -21,6 +22,19 @@ public enum MarkdownStyler {
     /// Runs covering `range` widened to whole lines.
     /// Blocks longer than this (in UTF-16 units) are shown as plain Markdown in both modes.
     public static let maxStyledBlockLength = 65_536
+
+    /// A whole note styled for reading: live mode with no caret, so every marker is hidden. The string is the
+    /// note's exact text; only attributes are added (the iPhone and iPad reader).
+    public static func styledText(_ text: String, theme: EditorTheme, imageHeight: (String) -> CGFloat = { _ in 96 }) -> NSAttributedString {
+        let out = NSMutableAttributedString(string: text)
+        let whole = NSRange(location: 0, length: out.length)
+        let noCaret = NSRange(location: NSNotFound, length: 0)
+        for run in runs(text: text, document: MarkdownParser.parse(text), selection: noCaret, mode: .live,
+                        theme: theme, in: whole, imageHeight: imageHeight) {
+            out.setAttributes(run.attributes.nsAttributes, range: run.range)
+        }
+        return out
+    }
 
     public static func runs(text: String, document: MarkdownDocument, selection: NSRange, mode: EditorMode,
                             theme: EditorTheme, in range: NSRange, imageHeight: (String) -> CGFloat = { _ in 96 }) -> [StyleRun] {

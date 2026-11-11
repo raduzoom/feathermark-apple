@@ -5,7 +5,7 @@ import Foundation
 import Observation
 
 /// The strength label on the password field (board desktop-onboarding-2): code points after NFC.
-public enum PasswordStrength: Equatable {
+public enum PasswordStrength: Equatable, Sendable {
     case tooShort, fair, good, strong
 
     public init(_ password: String) {
@@ -154,7 +154,7 @@ public final class OnboardingFlow {
 /// Sign in on another Mac, or with the recovery key (desktop-signin-* boards).
 @MainActor @Observable
 public final class SignInFlow {
-    public enum Mode { case password, recoveryKey, newPassword }
+    public enum Mode: Sendable { case password, recoveryKey, newPassword }
 
     public let cloud: CloudModel
     public var mode = Mode.password

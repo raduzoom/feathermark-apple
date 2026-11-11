@@ -2,7 +2,7 @@ import FeatherSync
 import Foundation
 
 /// The sidebar footer's lines (ui-copy.md "Sync status lines", desktop-sync-status board).
-public struct SyncStatusText: Equatable {
+public struct SyncStatusText: Equatable, Sendable {
     public var title: String
     public var detail: String?
     public var action: String?
@@ -56,7 +56,7 @@ public struct SyncStatusText: Equatable {
 }
 
 /// The banner above the note list for Feather Cloud states (ui-copy.md "Feather Cloud states").
-public enum CloudBanner: Equatable {
+public enum CloudBanner: Equatable, Sendable {
     case readOnly
     case trialEnding(days: Int)
     case storageNearlyFull(used: Int64, quota: Int64)

@@ -1,5 +1,5 @@
 /// Which designed empty state a pane shows instead of content.
-public enum EmptyState: Equatable {
+public enum EmptyState: Equatable, Sendable {
     /// A brand-new library: no notes anywhere.
     case firstLaunch
     /// The selected view or notebook has no notes.

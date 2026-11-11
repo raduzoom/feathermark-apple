@@ -81,9 +81,9 @@ final class ServerInfoProtocol: URLProtocol, @unchecked Sendable {
     }
 
     @Test func isolatedRunsUseMemoryStores() {
-        let env = CloudEnvironment.live(isolated: true)
+        let env = CloudEnvironment.live(isolated: true, deviceName: "Test Device")
         #expect(env.secrets is InMemorySecretStore && env.keys is InMemoryMasterKeyStore)
-        let real = CloudEnvironment.live(isolated: false)
+        let real = CloudEnvironment.live(isolated: false, deviceName: "Test Device")
         #expect(real.secrets is KeychainSecretStore && real.keys is KeychainMasterKeyStore)
     }
 

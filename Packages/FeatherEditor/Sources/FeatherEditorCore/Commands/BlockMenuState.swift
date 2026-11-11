@@ -1,7 +1,7 @@
 import Foundation
 
 /// The block menu's query, matching choices and selected row.
-public struct BlockMenuState: Equatable {
+public struct BlockMenuState: Equatable, Sendable {
     public static let maxQueryLength = 24
 
     public var query = ""

@@ -242,4 +242,15 @@ public struct ChipInfo: Sendable {
         self.isPDF = isPDF
         self.missing = missing
     }
+
+    /// The chip for an attachment file: its extension's first four letters ("FILE" without one), or "?" when
+    /// the file is missing.
+    public init(file: URL?) {
+        guard let file, FileManager.default.fileExists(atPath: file.path) else {
+            self.init(badge: "?", isPDF: false, missing: true)
+            return
+        }
+        let ext = file.pathExtension.uppercased()
+        self.init(badge: ext.isEmpty ? "FILE" : String(ext.prefix(4)), isPDF: ext == "PDF", missing: false)
+    }
 }

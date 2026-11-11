@@ -14,26 +14,34 @@ public struct CloudEnvironment {
     /// Whether Feather Cloud has billing, from the build (false in 1.0.0).
     public var hostedBillingEnabled = CloudServer.hostedBillingEnabled
 
+    #if os(macOS)
     /// The Keychain normally; memory for test hosts and other isolated runs, which must never touch real secrets.
     public static func live(isolated: Bool, deviceName: String = defaultDeviceName) -> CloudEnvironment {
+        make(isolated: isolated, deviceName: deviceName)
+    }
+
+    /// The name the account's device list shows: this Mac's name.
+    public static var defaultDeviceName: String { Host.current().localizedName ?? "Mac" }
+
+    public static var memory: CloudEnvironment { live(isolated: true) }
+    #else
+    /// The Keychain normally; memory for test hosts and other isolated runs, which must never touch real secrets.
+    /// Off macOS the app names its device ("iPhone", "iPad"): there is no default to forget.
+    public static func live(isolated: Bool, deviceName: String) -> CloudEnvironment {
+        make(isolated: isolated, deviceName: deviceName)
+    }
+
+    public static var memory: CloudEnvironment { live(isolated: true, deviceName: "Test Device") }
+    #endif
+
+    private static func make(isolated: Bool, deviceName: String) -> CloudEnvironment {
         CloudEnvironment(secrets: isolated ? InMemorySecretStore() : KeychainSecretStore(),
                          keys: isolated ? InMemoryMasterKeyStore() : KeychainMasterKeyStore(),
                          configuration: { .ephemeral }, deviceName: deviceName)
     }
-
-    /// The name the account's device list shows: this Mac's name. The iPhone app passes its own (Phase 12).
-    public static var defaultDeviceName: String {
-        #if os(macOS)
-        Host.current().localizedName ?? "Mac"
-        #else
-        "iPhone"
-        #endif
-    }
-
-    public static var memory: CloudEnvironment { live(isolated: true) }
 }
 
-public enum CloudState: Equatable {
+public enum CloudState: Equatable, Sendable {
     case signedOut
     case signedIn(SignedIn)
 

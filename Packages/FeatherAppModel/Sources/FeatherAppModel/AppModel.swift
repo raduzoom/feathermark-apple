@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 import Observation
 
 /// The open note as the editor sees it.
-public struct EditorState: Equatable {
+public struct EditorState: Equatable, Sendable {
     public var id: ULID
     public var title: String
     public var body: String
@@ -27,6 +27,16 @@ public struct EditorState: Equatable {
         pinned = note.pinned
         modified = note.modified
         trashedAt = note.trashedAt
+    }
+}
+
+/// The note a swipe just moved to the Trash, while its Undo is offered.
+public struct UndoTrash: Equatable, Sendable {
+    public var noteID: ULID
+    public var title: String
+    public init(noteID: ULID, title: String) {
+        self.noteID = noteID
+        self.title = title
     }
 }
 
@@ -256,6 +266,15 @@ public final class AppModel {
             return selection == .trash ? .emptyTrash : .emptyView
         }
         return selectedNoteID == nil ? .noNoteSelected : nil
+    }
+
+    /// The note list's filter chips (iPhone and iPad): All, Pinned and the top-level notebooks. None in the Trash,
+    /// Recent or a tag, where switching views from the list would be surprising.
+    public var filterChips: [SidebarItem] {
+        switch selection {
+        case .trash, .recent, .tag: return []
+        case .all, .pinned, .notebook: return [.all, .pinned] + notebooks.filter { $0.parentID == nil }.map { .notebook($0.id) }
+        }
     }
 
     public func notebookName(_ id: ULID) -> String? { notebooks.first { $0.id == id }?.name }
@@ -506,6 +525,42 @@ public final class AppModel {
         await change(id) { _ in try await self.library.trashNote(id) }
     }
 
+    // MARK: Trash with Undo (iPhone and iPad: a full swipe trashes with no confirmation)
+
+    /// Offered after `trashWithUndo` until `undoWindow` passes, the offer is dismissed, or another note replaces it.
+    public private(set) var undoTrash: UndoTrash?
+    /// How long the Undo stays offered.
+    public var undoWindow: Duration = .seconds(5)
+    private var undoExpiry: Task<Void, Never>?
+
+    /// Moves a note to the Trash and offers to undo it; a newer offer replaces an older one.
+    public func trashWithUndo(_ id: ULID) async {
+        let title = notes.first { $0.id == id }?.title ?? editor.flatMap { $0.id == id ? $0.title : nil } ?? ""
+        await trash(id)
+        let offer = UndoTrash(noteID: id, title: title)
+        undoTrash = offer
+        undoExpiry?.cancel()
+        let window = undoWindow
+        undoExpiry = Task { [weak self] in
+            try? await Task.sleep(for: window)
+            guard !Task.isCancelled, let self, self.undoTrash == offer else { return }
+            self.undoTrash = nil
+        }
+    }
+
+    /// Restores the note of the current offer, if any.
+    public func undoLastTrash() async {
+        guard let offer = undoTrash else { return }
+        dismissUndo()
+        await restore(offer.noteID)
+    }
+
+    public func dismissUndo() {
+        undoExpiry?.cancel()
+        undoExpiry = nil
+        undoTrash = nil
+    }
+
     public func restore(_ id: ULID) async {
         await change(id) { _ in try await self.library.restoreNote(id) }
     }
@@ -595,6 +650,12 @@ public final class AppModel {
         guard text != searchText else { return }
         searchText = text
         Task { await setSearch(text) }
+    }
+
+    /// The library's search field: searches every note, whatever view was selected.
+    public func searchAll(_ text: String) async {
+        if selection != .all { await select(.all) }
+        await setSearch(text)
     }
 
     public func setSearchNotebook(_ id: ULID?) async {

@@ -68,11 +68,16 @@ public enum Formatting {
         return notebookName.map { "\(when) · \($0)" } ?? when
     }
 
+    /// After Export Notes: "Exported 148 notes to “FeatherMark Export”."
+    public static func exportSummary(_ r: ExportReport) -> String {
+        "Exported \(r.notes) \(r.notes == 1 ? "note" : "notes") to “\(r.root.lastPathComponent)”."
+    }
+
     public static func displayTitle(_ title: String) -> String {
         title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : title
     }
 
-    public struct Confirmation: Equatable {
+    public struct Confirmation: Equatable, Sendable {
         public var title: String
         public var message: String
         public var button: String
