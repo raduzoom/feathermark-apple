@@ -6,6 +6,14 @@ The Mac app and, from Phase 12, the iPhone and iPad app, with the Swift packages
 
 Open the generated project in Xcode and run the FeatherNote scheme (the Mac app) or the FeatherMarkiOS scheme (the iPhone and iPad app, `iOSApp/`), or build from the command line (below). On the Mac the library lives in `~/Library/Application Support/FeatherMark/`; on iPhone and iPad, in the app's Application Support folder.
 
+To try the iPhone app in the simulator from the command line (builds it, opens the simulator and launches it; needs only Xcode and npm):
+
+```bash
+npm run ios
+```
+
+`npm run ios` uses a temporary library with demo notes; `npm run ios:own` keeps the simulator's own library; `npm run ipad` runs on an iPad; `npm run sim` only opens the simulator. Pick another simulator with `bash scripts/run_ios_sim.sh --demo "iPhone 17"`. On Xcode 27 the simulator shows in Device Hub.
+
 ## Building
 
 Needs Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).

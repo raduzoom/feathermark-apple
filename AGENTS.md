@@ -22,6 +22,8 @@ The iPhone and iPad app alone (unit and UI tests; run it on an iPad too, e.g. `n
 xcodegen generate && xcodebuild test -project FeatherNote.xcodeproj -scheme FeatherMarkiOS -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
+To look at the iPhone app (build, boot the simulator, show it, launch the app): `npm run ios` (demo notes in a temporary library), `npm run ios:own` (the simulator's own library), `npm run ipad`, or `npm run sim` (only show the simulator). They run `scripts/run_ios_sim.sh`; `package.json` has no dependencies. Xcode 27 has no Simulator.app: simulators show in Device Hub (`Xcode.app/Contents/Applications/DeviceHub.app`), which the script opens. It runs `xcodegen generate` only when the project is missing, so run that yourself after adding files.
+
 Release build and universal check:
 
 ```bash

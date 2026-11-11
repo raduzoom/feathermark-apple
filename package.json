@@ -1,0 +1,13 @@
+{
+  "name": "feathermark-apple",
+  "private": true,
+  "license": "MIT",
+  "description": "Shortcuts for running FeatherMark in the iOS simulator (no dependencies; npm only runs the scripts)",
+  "scripts": {
+    "ios": "bash scripts/run_ios_sim.sh --demo",
+    "ios:own": "bash scripts/run_ios_sim.sh",
+    "ipad": "bash scripts/run_ios_sim.sh --demo \"iPad Pro 13-inch (M5)\"",
+    "sim": "bash scripts/run_ios_sim.sh --open-only",
+    "test": "bash scripts/test_all.sh"
+  }
+}
