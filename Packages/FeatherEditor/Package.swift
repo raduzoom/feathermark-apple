@@ -9,6 +9,8 @@ let package = Package(
         .library(name: "FeatherEditorCore", targets: ["FeatherEditorCore"]),
         // The AppKit editor view (macOS); re-exports FeatherEditorCore. Its files compile to nothing on iOS.
         .library(name: "FeatherEditor", targets: ["FeatherEditor"]),
+        // The UIKit editor view (iPhone and iPad, Phase 13); re-exports FeatherEditorCore. Its files compile to nothing on macOS.
+        .library(name: "FeatherEditorPhone", targets: ["FeatherEditorPhone"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", exact: "0.9.0"),
@@ -16,10 +18,12 @@ let package = Package(
     targets: [
         .target(name: "FeatherEditorCore", dependencies: [.product(name: "Markdown", package: "swift-markdown")]),
         .target(name: "FeatherEditor", dependencies: ["FeatherEditorCore"]),
+        .target(name: "FeatherEditorPhone", dependencies: ["FeatherEditorCore"]),
         // The Markdown corpus and helpers both test targets use (public API only, so release test runs build it).
         .target(name: "FeatherEditorTestSupport", dependencies: ["FeatherEditorCore"],
                 path: "Tests/FeatherEditorTestSupport", resources: [.copy("Fixtures")]),
         .testTarget(name: "FeatherEditorCoreTests", dependencies: ["FeatherEditorCore", "FeatherEditorTestSupport"]),
         .testTarget(name: "FeatherEditorTests", dependencies: ["FeatherEditor", "FeatherEditorTestSupport"]),
+        .testTarget(name: "FeatherEditorPhoneTests", dependencies: ["FeatherEditorPhone", "FeatherEditorTestSupport"]),
     ]
 )
