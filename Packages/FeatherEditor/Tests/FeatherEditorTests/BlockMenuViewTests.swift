@@ -1,6 +1,7 @@
 // Tests of the AppKit editor view: macOS only.
 #if os(macOS)
 import AppKit
+import FeatherEditorTestSupport
 import Testing
 @testable import FeatherEditor
 @testable import FeatherEditorCore

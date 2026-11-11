@@ -139,6 +139,15 @@ func blk(_ choice: BlockChoice, _ withBar: String, trigger: NSRange? = nil) -> S
     #expect(!noMatch && !space && !long && s.query == "list")
 }
 
+@Test func hiddenChoicesNeverShow() {
+    // iOS hides "Scan from iPhone" until Phase 14 (Capture)
+    var s = BlockMenuState(hiding: [.scan])
+    #expect(!s.items.contains(.scan) && s.items.count == BlockChoice.allCases.count - 1)
+    s.move(-1); #expect(s.selection == .imageOrFile)
+    #expect(!s.setQuery("sca") && s.query == "")
+    #expect(s.setQuery("ima") && s.items == [.imageOrFile])
+}
+
 // Review fixes (Phase 5.1 final review)
 
 func media(_ snippets: [String], _ withBar: String) -> String {

@@ -1,30 +1,10 @@
 // Tests of the AppKit editor view: macOS only.
 #if os(macOS)
 import AppKit
+import FeatherEditorTestSupport
 import Testing
 @testable import FeatherEditor
 @testable import FeatherEditorCore
-
-func makePNG(width: Int, height: Int) -> URL {
-    let url = FileManager.default.temporaryDirectory.appending(path: "FNImg-\(UUID().uuidString).png")
-    let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-    ctx.setFillColor(CGColor(red: 0.2, green: 0.5, blue: 0.3, alpha: 1))
-    ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
-    let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)
-    try! rep.representation(using: .png, properties: [:])!.write(to: url)
-    return url
-}
-
-/// Waits while yielding the main actor, so background loads can land.
-@MainActor func waitFor(_ condition: () -> Bool, timeout: TimeInterval = 3) async -> Bool {
-    let end = Date().addingTimeInterval(timeout)
-    while Date() < end {
-        if condition() { return true }
-        try? await Task.sleep(for: .milliseconds(20))
-    }
-    return condition()
-}
 
 @MainActor func spacingBefore(_ tv: EditorTextView, at i: Int) -> CGFloat {
     (tv.textStorage?.attribute(.paragraphStyle, at: i, effectiveRange: nil) as? NSParagraphStyle)?.paragraphSpacingBefore ?? -1

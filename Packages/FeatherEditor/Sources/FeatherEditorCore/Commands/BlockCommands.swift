@@ -166,3 +166,23 @@ extension EditorCommands {
         return line(s, at: NSMaxRange(l.range) + l.ending.utf16.count).text.trimmingCharacters(in: .whitespaces).isEmpty
     }
 }
+
+extension EditorCommands {
+    /// Pasted or dropped files: their snippets replace `range`, each on its own line (new lines where the range
+    /// isn't at a line's start or end), using the note's own line ending. Nil when there are none.
+    public static func attachmentSnippets(_ snippets: [String], text: String, at range: NSRange) -> Edit? {
+        guard !snippets.isEmpty else { return nil }
+        let ns = text as NSString
+        let start = min(range.location, ns.length)
+        let end = min(NSMaxRange(range), ns.length)
+        let atLineStart = start == 0 || [0x0A, 0x0D].contains(ns.character(at: start - 1))
+        let atLineEnd = end >= ns.length || [0x0A, 0x0D].contains(ns.character(at: end))
+        let l = line(ns, at: start)
+        let nl = l.ending.isEmpty ? previousEnding(ns, before: l.range.location) : l.ending
+        var insert = snippets.joined(separator: nl)
+        if !atLineStart { insert = nl + insert }
+        if !atLineEnd { insert += nl }
+        return Edit(range: NSRange(location: start, length: end - start), replacement: insert,
+                    selection: NSRange(location: start + (insert as NSString).length, length: 0))
+    }
+}

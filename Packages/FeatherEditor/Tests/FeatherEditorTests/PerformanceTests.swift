@@ -6,49 +6,6 @@ import Testing
 @testable import FeatherEditor
 @testable import FeatherEditorCore
 
-/// A deterministic note of about `words` words using every construct.
-func generatedNote(words: Int, seed: UInt64 = 7) -> String {
-    var rng = SplitMix64(state: seed)
-    let a = ["ka", "lo", "mi", "ne", "ru", "sa", "te", "vi"]
-    let b = ["ber", "cal", "dun", "fen", "gor"]
-    let c = ["a", "e", "i", "o", "u"]
-    var vocab: [String] = []
-    for i in 0..<200 {
-        let first: String = a[i % 8]
-        let second: String = b[(i / 8) % 5]
-        let third: String = c[(i / 40) % 5]
-        vocab.append(first + second + third)
-    }
-    func w() -> String { vocab[Int.random(in: 0..<vocab.count, using: &rng)] }
-    func sentence(_ n: Int) -> String {
-        (0..<n).map { i -> String in
-            switch Int.random(in: 0..<30, using: &rng) {
-            case 0: return "**\(w())**"
-            case 1: return "*\(w())*"
-            case 2: return "`\(w())`"
-            case 3: return "[\(w())](https://example.com/\(i))"
-            default: return w()
-            }
-        }.joined(separator: " ")
-    }
-    var out: [String] = []
-    var count = 0
-    var i = 0
-    while count < words {
-        switch i % 12 {
-        case 0: out.append("## " + sentence(4)); count += 4
-        case 3: out.append((0..<5).map { _ in "- " + sentence(8) }.joined(separator: "\n")); count += 40
-        case 5: out.append((0..<4).map { j in "- [\(j % 2 == 0 ? " " : "x")] " + sentence(6) }.joined(separator: "\n")); count += 24
-        case 7: out.append("> " + sentence(30)); count += 30
-        case 9: out.append("```swift\nlet \(w()) = \"\(w())\" // \(w())\nfunc \(w())() {}\n```"); count += 8
-        case 11: out.append("---"); count += 0
-        default: out.append(sentence(60)); count += 60
-        }
-        i += 1
-    }
-    return out.joined(separator: "\n\n")
-}
-
 func ms(_ d: Duration) -> Double { Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15 }
 
 func percentile(_ xs: [Double], _ p: Double) -> Double {

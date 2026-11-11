@@ -1,42 +1,13 @@
 // Tests of the AppKit editor view: macOS only.
 #if os(macOS)
 import AppKit
+import FeatherEditorTestSupport
 import Testing
 @testable import FeatherEditor
 @testable import FeatherEditorCore
 
-/// Phase 4 deferred minors (Phase 5 Task 6).
+/// Phase 4 deferred minors (Phase 5 Task 6) that need the AppKit view; the cache's own tests are in FeatherEditorCoreTests.
 @MainActor @Suite struct ImageCacheTests {
-    func load(_ cache: ImageCache, _ url: URL) async {
-        var done = false
-        cache.load(url) { done = true }
-        _ = await waitFor({ done }, timeout: 15)
-    }
-
-    @Test func cacheEvictsLeastRecentlyUsed() async {
-        let cache = ImageCache(limit: 2)
-        let a = makePNG(width: 8, height: 8), b = makePNG(width: 9, height: 9), c = makePNG(width: 10, height: 10)
-        await load(cache, a)
-        await load(cache, b)
-        _ = cache.image(for: a)   // a is used again, so b is now the oldest
-        await load(cache, c)
-        #expect(cache.image(for: a) != nil)
-        #expect(cache.image(for: b) == nil)
-        #expect(cache.image(for: c) != nil)
-    }
-
-    @Test func failedFileRetriesAfterForget() async throws {
-        let cache = ImageCache()
-        let url = FileManager.default.temporaryDirectory.appending(path: "FN-\(UUID().uuidString).png")
-        try Data("not an image".utf8).write(to: url)
-        await load(cache, url)
-        #expect(cache.hasFailed(url))
-        try Data(contentsOf: makePNG(width: 4, height: 4)).write(to: url)
-        cache.forgetFailure(for: url)
-        await load(cache, url)
-        #expect(cache.image(for: url) != nil)
-    }
-
     @Test func imageLoadRestylesOnlyItsBlock() async {
         let png = makePNG(width: 400, height: 200)
         let text = String(repeating: "Paragraph with some words in it.\n\n", count: 300) + "![p](feather://attachment/IMG)\n"

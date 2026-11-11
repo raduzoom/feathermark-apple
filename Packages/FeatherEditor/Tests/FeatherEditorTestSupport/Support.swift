@@ -5,6 +5,8 @@ import UIKit
 #endif
 import FeatherEditorCore
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 import Testing
 
 /// The Markdown corpus (Fixtures/corpus/*.md). Every corpus test, on macOS and iOS, reads it from here.
@@ -63,3 +65,69 @@ public let isMac: Bool = {
 }()
 
 public let timingReason: Comment = "timing is measured on macOS; the iOS simulator's timings are too noisy to judge"
+
+/// A deterministic note of about `words` words using every construct (the performance and styling tests).
+public func generatedNote(words: Int, seed: UInt64 = 7) -> String {
+    var rng = SplitMix64(state: seed)
+    let a = ["ka", "lo", "mi", "ne", "ru", "sa", "te", "vi"]
+    let b = ["ber", "cal", "dun", "fen", "gor"]
+    let c = ["a", "e", "i", "o", "u"]
+    var vocab: [String] = []
+    for i in 0..<200 {
+        let first: String = a[i % 8]
+        let second: String = b[(i / 8) % 5]
+        let third: String = c[(i / 40) % 5]
+        vocab.append(first + second + third)
+    }
+    func w() -> String { vocab[Int.random(in: 0..<vocab.count, using: &rng)] }
+    func sentence(_ n: Int) -> String {
+        (0..<n).map { i -> String in
+            switch Int.random(in: 0..<30, using: &rng) {
+            case 0: return "**\(w())**"
+            case 1: return "*\(w())*"
+            case 2: return "`\(w())`"
+            case 3: return "[\(w())](https://example.com/\(i))"
+            default: return w()
+            }
+        }.joined(separator: " ")
+    }
+    var out: [String] = []
+    var count = 0
+    var i = 0
+    while count < words {
+        switch i % 12 {
+        case 0: out.append("## " + sentence(4)); count += 4
+        case 3: out.append((0..<5).map { _ in "- " + sentence(8) }.joined(separator: "\n")); count += 40
+        case 5: out.append((0..<4).map { j in "- [\(j % 2 == 0 ? " " : "x")] " + sentence(6) }.joined(separator: "\n")); count += 24
+        case 7: out.append("> " + sentence(30)); count += 30
+        case 9: out.append("```swift\nlet \(w()) = \"\(w())\" // \(w())\nfunc \(w())() {}\n```"); count += 8
+        case 11: out.append("---"); count += 0
+        default: out.append(sentence(60)); count += 60
+        }
+        i += 1
+    }
+    return out.joined(separator: "\n\n")
+}
+
+/// A solid-colour PNG of the given pixel size, in a new temporary file.
+public func makePNG(width: Int, height: Int) -> URL {
+    let url = FileManager.default.temporaryDirectory.appending(path: "FNImg-\(UUID().uuidString).png")
+    let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.setFillColor(CGColor(red: 0.2, green: 0.5, blue: 0.3, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)!
+    CGImageDestinationAddImage(dest, ctx.makeImage()!, nil)
+    CGImageDestinationFinalize(dest)
+    return url
+}
+
+/// Waits while yielding the main actor, so background loads can land.
+@MainActor public func waitFor(_ condition: () -> Bool, timeout: TimeInterval = 3) async -> Bool {
+    let end = Date().addingTimeInterval(timeout)
+    while Date() < end {
+        if condition() { return true }
+        try? await Task.sleep(for: .milliseconds(20))
+    }
+    return condition()
+}

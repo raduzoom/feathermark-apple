@@ -111,6 +111,18 @@ extension PlatformBezierPath {
 }
 
 /// The current drawing context's state, as TextKit sets it up when it asks a layout fragment to draw.
+extension PlatformImage {
+    /// An image of `cgImage` (a downsampled thumbnail) that reports `size` in points: the original's pixel size,
+    /// which the editor scales down to the measure.
+    static func make(cgImage: CGImage, size: CGSize) -> PlatformImage {
+        #if canImport(AppKit)
+        NSImage(cgImage: cgImage, size: size)
+        #else
+        UIImage(cgImage: cgImage, scale: size.width > 0 ? CGFloat(cgImage.width) / size.width : 1, orientation: .up)
+        #endif
+    }
+}
+
 enum PlatformGraphics {
     static func save() {
         #if canImport(AppKit)
