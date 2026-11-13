@@ -103,6 +103,22 @@ import UIKit
         #expect(bar.buttons.map(\.accessibilityLabel) == labels)
     }
 
+    /// On a wide keyboard (iPad) the buttons sit centred; on a narrow one they start at the leading edge and scroll.
+    @Test func buttonsCentreWhenTheyFit() throws {
+        let editor = makeEditor("text")
+        let bar = try bar(editor)
+        let bold = try #require(bar.button(labelled: "Heading"))
+        #expect(bold.convert(bold.bounds, to: bar).minX < 20, "starts at the edge on iPhone")
+        bar.frame = CGRect(x: 0, y: 0, width: 1194, height: 52)
+        bar.layoutIfNeeded()
+        let first = try #require(bar.button(labelled: "Heading")).convert(bold.bounds, to: bar)
+        let last = try #require(bar.button(labelled: "Undo"))
+        let lastFrame = last.convert(last.bounds, to: bar)
+        let left = first.minX, right = 1194 - lastFrame.maxX
+        #expect(left > 200, "centred, not at the edge: \(left)")
+        #expect(abs(left - right) < 120, "about as far from both edges: \(left) vs \(right)")
+    }
+
     @Test func keyCommandsRunTheEditorCommands() throws {
         let editor = makeEditor("one two")
         let commands = editor.keyCommands ?? []

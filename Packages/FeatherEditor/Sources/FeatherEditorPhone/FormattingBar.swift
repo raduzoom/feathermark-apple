@@ -115,9 +115,12 @@ public final class FormattingBar: UIInputView {
         divider.frame = CGRect(x: hide.frame.minX - 5, y: (h - 24) / 2, width: 1, height: 24)
         scroll.frame = CGRect(x: side, y: 0, width: max(0, divider.frame.minX - 4 - side), height: h)
         let size = stack.systemLayoutSizeFitting(CGSize(width: UIView.layoutFittingCompressedSize.width, height: Self.target))
-        stack.frame = CGRect(x: 0, y: (h - Self.target) / 2, width: size.width, height: Self.target)
+        // Centred when everything fits (iPad, board tablet-editor-keyboard-ipados-portrait-light); otherwise it
+        // starts at the leading edge and scrolls.
+        let x = max(0, ((scroll.frame.width - size.width) / 2).rounded(.down))
+        stack.frame = CGRect(x: x, y: (h - Self.target) / 2, width: size.width, height: Self.target)
         stack.layoutIfNeeded()
-        scroll.contentSize = CGSize(width: size.width, height: h)
+        scroll.contentSize = CGSize(width: x + size.width, height: h)
     }
 
     /// The button with this accessibility label.
