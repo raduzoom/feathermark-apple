@@ -359,7 +359,8 @@ extension EditorTextView {
 
     private func command(_ c: (String, MarkdownDocument, NSRange) -> EditorCommands.Edit?) -> Bool {
         guard mode == .live, !hasMarkedText(), let e = c(string, parser.document, selectedRange()) else { return false }
-        apply(e)
+        if e.range.length == 0, e.replacement.isEmpty { setSelectedRange(e.selection) } // a guard that changes nothing
+        else { apply(e) }
         return true
     }
 
@@ -378,7 +379,16 @@ extension EditorTextView {
     }
 
     public override func deleteBackward(_ sender: Any?) {
-        if !command(EditorCommands.backspaceAtItemStart) { super.deleteBackward(sender) }
+        if !command({ EditorCommands.codeFenceGuard(text: $0, document: $1, selection: $2, key: .backspace) }),
+           !command(EditorCommands.backspaceAtItemStart) { super.deleteBackward(sender) }
+    }
+
+    public override func moveDown(_ sender: Any?) {
+        if !command(EditorCommands.leaveCodeBlock) { super.moveDown(sender) }
+    }
+
+    public override func deleteForward(_ sender: Any?) {
+        if !command({ EditorCommands.codeFenceGuard(text: $0, document: $1, selection: $2, key: .delete) }) { super.deleteForward(sender) }
     }
 
     /// Toggles the checkbox of the list item containing `location`.
@@ -477,6 +487,11 @@ extension EditorTextView {
                 copyCodeBlock(containing: start)
                 return
             }
+            if isEditable, let label = frag.languageLabel, label.rect.insetBy(dx: -6, dy: -4).contains(local) {
+                showLanguageMenu(forBlockAt: start, at: CGPoint(x: frag.layoutFragmentFrame.minX + label.rect.minX + textContainerOrigin.x,
+                                                                 y: frag.layoutFragmentFrame.minY + label.rect.maxY + textContainerOrigin.y + 4))
+                return
+            }
         }
         if event.modifierFlags.contains(.command), let storage = textStorage, storage.length > 0 {
             let i = min(characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)), storage.length - 1)
@@ -492,10 +507,38 @@ extension EditorTextView {
         for b in parser.document.blocks where location >= b.range.location && location <= NSMaxRange(b.range) {
             if case .codeBlock(_, let content) = b.kind {
                 NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString((string as NSString).substring(with: content), forType: .string)
+                var code = (string as NSString).substring(with: content)
+                if code.hasSuffix("\n") { code.removeLast() } // "\r\n" is one Character
+                else if code.hasSuffix("\r") { code.removeLast() }
+                NSPasteboard.general.setString(code, forType: .string)
                 return
             }
         }
+    }
+
+    /// The code bar's language menu (specs/editor.md "Code bar"); a pick rewrites the opening fence's info string.
+    func showLanguageMenu(forBlockAt location: Int, at point: CGPoint) {
+        guard let b = parser.document.blocks.first(where: { location >= $0.range.location && location <= NSMaxRange($0.range) }),
+              case .codeBlock(let language, _) = b.kind else { return }
+        let current = language ?? ""
+        let menu = NSMenu()
+        var choices = EditorCommands.codeLanguages
+        if !choices.contains(where: { $0.id == current }) { choices.insert((current, current), at: 0) }
+        for choice in choices {
+            let item = NSMenuItem(title: choice.label, action: #selector(pickCodeLanguage(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = [location, choice.id] as [Any]
+            item.state = choice.id == current ? .on : .off
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: point, in: self)
+    }
+
+    @objc func pickCodeLanguage(_ item: NSMenuItem) {
+        guard let info = item.representedObject as? [Any], let location = info[0] as? Int, let id = info[1] as? String,
+              let e = EditorCommands.setCodeLanguage(text: string, document: parser.document, at: location, language: id, selection: selectedRange())
+        else { return }
+        apply(e)
     }
 
     public override func updateTrackingAreas() {

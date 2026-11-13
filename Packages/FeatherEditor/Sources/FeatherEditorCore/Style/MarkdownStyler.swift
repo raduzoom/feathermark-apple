@@ -183,8 +183,9 @@ public enum MarkdownStyler {
             }
             for m in block.markers { set(m, hide) }
         case .codeBlock(let language, let content):
-            let inside = touches(block.range)
             set(block.range, [.font: theme.monoCode, .foregroundColor: theme.codeText])
+            // the code bar shows unless the opening fence does (specs/editor.md "Code bar")
+            let bar = block.markers.first.map { !touches(withoutBreak($0, in: text)) } ?? false
             // one paragraph per line: first/last flags let the fragment round the block's corners
             var lineStart = content.location
             let end = NSMaxRange(content)
@@ -196,7 +197,7 @@ public enum MarkdownStyler {
                 set(NSRange(location: lineStart, length: max(0, lineEnd - lineStart)),
                     [.paragraphStyle: para(theme.codeLineHeight, theme.codePadding, nil, -theme.codePadding,
                                            first ? theme.codePadding : 0, last ? theme.codePadding : 0),
-                     .featherDecoration: Decoration.code(language: language, first: first, last: last)])
+                     .featherDecoration: Decoration.code(language: language, first: first, last: last, bar: bar)])
                 first = false
                 if lineEnd <= lineStart { break }
                 lineStart = lineEnd
@@ -205,8 +206,9 @@ public enum MarkdownStyler {
                 let color: PlatformColor = switch token.kind { case .keyword: theme.syntaxKeyword; case .string: theme.syntaxString; case .comment: theme.syntaxComment }
                 set(NSRange(location: content.location + token.range.location, length: token.range.length), [.foregroundColor: color])
             }
+            // only the fence line the caret is on shows (specs/editor.md "Live preview")
             for m in block.markers {
-                if inside {
+                if touches(withoutBreak(m, in: text)) {
                     set(m, reveal.merging([.paragraphStyle: para(theme.codeLineHeight, theme.codePadding, nil, 0, 0, 0)]) { $1 })
                 } else {
                     set(m, hide.merging([.paragraphStyle: para(0.01, 0, nil, 0, 0, 0)]) { $1 })
@@ -229,6 +231,13 @@ public enum MarkdownStyler {
             styleInlines(block, set: set, touches: touches, hide: hide, reveal: reveal, theme: theme)
             return
         }
+    }
+
+    /// A marker range without its trailing line break: the caret at the start of the next line doesn't touch it.
+    static func withoutBreak(_ r: NSRange, in text: NSString) -> NSRange {
+        var end = NSMaxRange(r)
+        while end > r.location, text.character(at: end - 1) == 0x0A || text.character(at: end - 1) == 0x0D { end -= 1 }
+        return NSRange(location: r.location, length: end - r.location)
     }
 
     static func styleInlines(_ block: Block, set: (NSRange, [NSAttributedString.Key: Any]) -> Void, touches: (NSRange) -> Bool,

@@ -96,8 +96,15 @@ import Testing
         let content = (t as NSString).range(of: "let").location
         #expect(decoration(s, content) == .code(language: "swift", first: true, last: true))
         #expect(font(s, content).pointSize == 12.5)
+        // the caret in the content keeps both fences hidden; on a fence line, that line shows and the bar goes
         let inside = styled(t, caret: content + 1)
-        #expect(!isHidden(inside, 0))
+        #expect(isHidden(inside, 0) && isHidden(inside, (t as NSString).length - 1))
+        #expect(isHidden(styled(t, caret: content), 0))
+        let onOpen = styled(t, caret: 3)
+        #expect(!isHidden(onOpen, 0) && isHidden(onOpen, (t as NSString).length - 1))
+        #expect(decoration(onOpen, content) == .code(language: "swift", first: true, last: true, bar: false))
+        let onClose = styled(t, caret: (t as NSString).length)
+        #expect(isHidden(onClose, 0) && !isHidden(onClose, (t as NSString).length - 1))
     }
 
     @Test func codeHighlighter() {

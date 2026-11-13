@@ -82,11 +82,22 @@ public final class DecoratedLayoutFragment: NSTextLayoutFragment {
         return CGRect(x: point.x - layoutFragmentFrame.minX, y: top, width: containerWidth, height: bottom - top)
     }
 
-    /// Where the code block's Copy button sits (first line only).
+    /// Where the code block's Copy button sits (first line only, with the code bar).
     public var copyButtonRect: CGRect? {
-        guard case .code(_, true, _) = decoration else { return nil }
+        guard case .code(_, true, _, true) = decoration else { return nil }
         let top = layoutFragmentFrame.height - (textLineFragments.first.map { _ in firstLineRect.height } ?? 0) - theme.codePadding
         return CGRect(x: containerWidth - 64, y: max(0, top - 4), width: 48, height: 20)
+    }
+
+    /// The code bar's language label ("Plain text" without one, shown only on hover): text and fragment rect.
+    /// A click on it opens the language menu (specs/editor.md "Code bar").
+    public var languageLabel: (text: NSAttributedString, rect: CGRect)? {
+        guard case .code(let language, true, _, true) = decoration, language != nil || showsCopyButton else { return nil }
+        let name = language.map { id in EditorCommands.codeLanguages.first { $0.id == id }?.label ?? id } ?? "Plain text"
+        let label = NSAttributedString(string: name, attributes: [.font: PlatformFont.systemFont(ofSize: 11), .foregroundColor: theme.codeText.withAlphaComponent(0.6)])
+        let size = label.size()
+        let rect = CGRect(x: containerWidth - size.width - (showsCopyButton ? 72 : 16), y: 8, width: size.width, height: size.height)
+        return (label, rect)
     }
 
     override public var renderingSurfaceBounds: CGRect {
@@ -109,14 +120,11 @@ public final class DecoratedLayoutFragment: NSTextLayoutFragment {
         defer { PlatformGraphics.restore() }
 
         switch decoration {
-        case .code(let language, let first, let last):
+        case .code(_, let first, let last, _):
             let rect = surfaceRect(at: point)
             roundedRect(rect, radius: 16, top: first, bottom: last).fill(theme.codeBackground)
-            if first, let language {
-                let label = NSAttributedString(string: language, attributes: [.font: PlatformFont.systemFont(ofSize: 11), .foregroundColor: theme.codeText.withAlphaComponent(0.6)])
-                let size = label.size()
-                let showCopy = showsCopyButton
-                label.draw(at: CGPoint(x: left + containerWidth - size.width - (showCopy ? 72 : 16), y: frame.minY + 8))
+            if let (label, r) = languageLabel {
+                label.draw(at: CGPoint(x: left + r.minX, y: frame.minY + r.minY))
             }
             if first, showsCopyButton, let r = copyButtonRect {
                 let button = r.offsetBy(dx: left, dy: frame.minY)

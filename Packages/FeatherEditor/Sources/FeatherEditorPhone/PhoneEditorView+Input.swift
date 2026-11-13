@@ -55,7 +55,8 @@ extension PhoneEditorView {
     /// Runs a command at the selection; false when it doesn't apply (default handling then).
     func command(_ c: (String, MarkdownDocument, NSRange) -> EditorCommands.Edit?) -> Bool {
         guard mode == .live, !isReadOnly, markedTextRange == nil, let e = c(textStorage.string, styling.document, selectedRange) else { return false }
-        apply(e)
+        if e.range.length == 0, e.replacement.isEmpty { selectedRange = e.selection } // a guard that changes nothing
+        else { apply(e) }
         return true
     }
 
@@ -78,7 +79,8 @@ extension PhoneEditorView {
 
     public override func deleteBackward() {
         guard !isReadOnly else { return }
-        if !command(EditorCommands.backspaceAtItemStart) { super.deleteBackward() }
+        if !command({ EditorCommands.codeFenceGuard(text: $0, document: $1, selection: $2, key: .backspace) }),
+           !command(EditorCommands.backspaceAtItemStart) { super.deleteBackward() }
         textDidChange()
     }
 

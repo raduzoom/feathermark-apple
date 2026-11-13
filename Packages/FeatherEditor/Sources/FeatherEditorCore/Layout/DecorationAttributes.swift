@@ -6,7 +6,8 @@ public enum Decoration: Hashable, Sendable {
     case number
     case checkbox(checked: Bool)
     case quote(depth: Int, first: Bool, last: Bool)
-    case code(language: String?, first: Bool, last: Bool)
+    /// `bar`: the first line draws the code bar (language and Copy); off while the opening fence shows.
+    case code(language: String?, first: Bool, last: Bool, bar: Bool = true)
     case rule
     case image(url: String, alt: String)
     case chip(url: String, name: String)

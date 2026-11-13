@@ -162,6 +162,81 @@ public enum EditorCommands {
         return nil
     }
 
+    /// The code bar's language menu (specs/editor.md "Code bar"): label and id, the id written as the info string.
+    public static let codeLanguages: [(label: String, id: String)] = [
+        ("Plain text", ""), ("Bash", "bash"), ("C", "c"), ("C++", "cpp"), ("C#", "csharp"), ("CSS", "css"), ("Go", "go"),
+        ("HTML", "html"), ("Java", "java"), ("JavaScript", "javascript"), ("JSON", "json"), ("Kotlin", "kotlin"),
+        ("Markdown", "markdown"), ("PHP", "php"), ("Python", "python"), ("Ruby", "ruby"), ("Rust", "rust"), ("SQL", "sql"),
+        ("Swift", "swift"), ("TypeScript", "typescript"), ("YAML", "yaml"),
+    ]
+
+    /// Replaces the info string of the fenced code block holding `location` with `language` ("" for none); the caret stays.
+    public static func setCodeLanguage(text: String, document: MarkdownDocument, at location: Int, language: String, selection: NSRange) -> Edit? {
+        let s = text as NSString
+        for b in document.blocks where location >= b.range.location && location <= NSMaxRange(b.range) {
+            guard case .codeBlock = b.kind, let open = b.markers.first else { continue }
+            let l = line(s, at: open.location)
+            guard let fence = l.text.range(of: #"^[ \t]*(`{3,}|~{3,})"#, options: .regularExpression) else { return nil }
+            let from = l.range.location + (String(l.text[fence]) as NSString).length
+            let old = NSRange(location: from, length: NSMaxRange(l.range) - from)
+            guard s.substring(with: old) != language else { return nil }
+            let delta = (language as NSString).length - old.length
+            func shift(_ p: Int) -> Int { p <= from ? p : p >= NSMaxRange(old) ? p + delta : from + (language as NSString).length }
+            let a = shift(selection.location), e = shift(NSMaxRange(selection))
+            return Edit(range: old, replacement: language, selection: NSRange(location: a, length: e - a))
+        }
+        return nil
+    }
+
+    /// Down arrow on the last line of a fenced code block that ends the note (only blank lines after it): the caret
+    /// goes to the line below, and a line break is added first when the note ends at the block.
+    public static func leaveCodeBlock(text: String, document: MarkdownDocument, selection: NSRange) -> Edit? {
+        guard selection.length == 0 else { return nil }
+        let s = text as NSString
+        let p = selection.location
+        for b in document.blocks where p >= b.range.location && p <= NSMaxRange(b.range) {
+            guard case .codeBlock(_, let c) = b.kind, b.markers.count == 2 else { continue }
+            guard s.substring(from: NSMaxRange(b.range)).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            var end = NSMaxRange(c)
+            while end > c.location, s.character(at: end - 1) == 0x0A || s.character(at: end - 1) == 0x0D { end -= 1 }
+            guard p >= line(s, at: end).range.location else { return nil } // not on the last line yet
+            let close = line(s, at: b.markers[1].location)
+            let closeEnd = NSMaxRange(close.range)
+            if !close.ending.isEmpty {
+                let below = closeEnd + (close.ending as NSString).length
+                return Edit(range: NSRange(location: below, length: 0), replacement: "", selection: NSRange(location: below, length: 0))
+            }
+            let ending = previousEnding(s, before: close.range.location)
+            return Edit(range: NSRange(location: closeEnd, length: 0), replacement: ending,
+                        selection: NSRange(location: closeEnd + (ending as NSString).length, length: 0))
+        }
+        return nil
+    }
+
+    public enum DeleteKey: Sendable { case backspace, delete }
+
+    /// Backspace at the start of a fenced block's content, or Delete at its end, would join a hidden fence line: an
+    /// edit that does nothing, or, for Backspace in a block of blank lines, one that removes the block.
+    public static func codeFenceGuard(text: String, document: MarkdownDocument, selection: NSRange, key: DeleteKey) -> Edit? {
+        guard selection.length == 0 else { return nil }
+        let s = text as NSString
+        let p = selection.location
+        let caret = NSRange(location: p, length: 0)
+        for b in document.blocks where p >= b.range.location && p <= NSMaxRange(b.range) {
+            guard case .codeBlock(_, let c) = b.kind, !b.markers.isEmpty else { continue }
+            if key == .backspace, p == c.location {
+                if s.substring(with: c).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return Edit(range: b.range, replacement: "", selection: NSRange(location: b.range.location, length: 0))
+                }
+                return Edit(range: caret, replacement: "", selection: caret)
+            }
+            var end = NSMaxRange(c)
+            while end > c.location, s.character(at: end - 1) == 0x0A || s.character(at: end - 1) == 0x0D { end -= 1 }
+            if key == .delete, b.markers.count == 2, p == end, c.length > 0 { return Edit(range: caret, replacement: "", selection: caret) }
+        }
+        return nil
+    }
+
     // MARK: Helpers
 
     static func previousItem(_ s: NSString, before lineStart: Int) -> ItemMarker? {
