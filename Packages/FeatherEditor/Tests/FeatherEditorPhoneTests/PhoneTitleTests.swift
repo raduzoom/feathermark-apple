@@ -70,6 +70,19 @@ import UIKit
         #expect(e.textContainerInset.top > before)
     }
 
+    /// iPad shows a larger title (34 pt portrait, 38 pt landscape); nil goes back to the theme's.
+    @Test func titleSizeSetsTheTitleFont() {
+        let e = editor()
+        let before = e.headerFrames.title.height
+        e.titleSize = 38
+        e.layoutIfNeeded()
+        #expect(e.titleView.font?.pointSize == 38)
+        #expect(e.titleView.placeholderLabel.font.pointSize == 38)
+        #expect(e.headerFrames.title.height > before, "the header grows with the title")
+        e.titleSize = nil
+        #expect(e.titleView.font?.pointSize == e.theme.h1.pointSize)
+    }
+
     @Test func readOnlyTitle() {
         let e = editor()
         e.isReadOnly = true

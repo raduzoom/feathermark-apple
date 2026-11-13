@@ -148,9 +148,8 @@ extension PhoneEditorView {
         metaLabel.adjustsFontForContentSizeCategory = true
         metaLabel.textColor = theme.textSecondary
         metaLabel.numberOfLines = 0
-        titleView.font = theme.h1
+        applyTitleFont()
         titleView.textColor = theme.textPrimary
-        titleView.placeholderLabel.font = theme.h1
         titleView.placeholderLabel.textColor = theme.textPlaceholder
         titleView.onChange = { [weak self] title in
             guard let self else { return }
@@ -163,6 +162,15 @@ extension PhoneEditorView {
             onFocusChange(focused || isFirstResponder)
         }
         updateHeaderVisibility()
+    }
+
+    /// The title's font: the theme's first heading at `titleSize`, when set.
+    var titleFont: UIFont { titleSize.map { theme.h1.withSize($0) } ?? theme.h1 }
+
+    func applyTitleFont() {
+        titleView.font = titleFont
+        titleView.placeholderLabel.font = titleFont
+        setNeedsLayout()
     }
 
     func updateHeaderVisibility() {
@@ -227,7 +235,7 @@ extension PhoneEditorView {
         } else {
             headerFrames.meta = CGRect(x: x, y: y, width: width, height: 0)
         }
-        let h = max(theme.h1.lineHeight, titleView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height)
+        let h = max(titleFont.lineHeight, titleView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height)
         headerFrames.title = CGRect(x: x, y: y, width: width, height: h)
         positionHeader()
         return headerFrames.title.maxY + 16

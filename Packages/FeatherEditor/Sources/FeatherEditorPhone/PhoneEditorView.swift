@@ -22,6 +22,11 @@ public final class PhoneEditorView: UITextView, @preconcurrency NSTextStorageDel
     }
     /// Shows the meta line and title above the body (they scroll with the note).
     public var showsHeader = false { didSet { updateHeaderVisibility() } }
+    /// The title's point size; nil uses the theme's first heading. iPad shows a larger title (34 pt in portrait,
+    /// 38 pt in landscape, board tablet-main-ipados-landscape-light).
+    public var titleSize: CGFloat? {
+        didSet { if oldValue != titleSize { applyTitleFont() } }
+    }
     /// Every change to the title.
     public var onTitleChange: (String) -> Void = { _ in }
     /// The body or the title took or lost focus.

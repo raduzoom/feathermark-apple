@@ -63,6 +63,8 @@ public struct PhoneMarkdownEditor: UIViewRepresentable {
     /// Whether the title or body is being edited (the keyboard is up for them).
     @Binding var isEditing: Bool
     var handle: PhoneEditorHandle?
+    /// The title's point size (nil: the theme's first heading).
+    var titleSize: CGFloat?
 
     public init(text: Binding<String>, title: Binding<String>, meta: String, noteID: AnyHashable, mode: EditorMode, isEditable: Bool,
                 placeholder: String = "Start writing…", titlePlaceholder: String = "Title",
@@ -72,7 +74,7 @@ public struct PhoneMarkdownEditor: UIViewRepresentable {
                 theme: EditorTheme = .standard,
                 attach: @escaping (AttachSource) -> Void = { _ in },
                 wantsTitleFocus: Bool = false, titleTookFocus: @escaping () -> Void = {},
-                isEditing: Binding<Bool> = .constant(false), handle: PhoneEditorHandle? = nil) {
+                isEditing: Binding<Bool> = .constant(false), handle: PhoneEditorHandle? = nil, titleSize: CGFloat? = nil) {
         _text = text
         _title = title
         self.meta = meta
@@ -90,6 +92,7 @@ public struct PhoneMarkdownEditor: UIViewRepresentable {
         self.titleTookFocus = titleTookFocus
         _isEditing = isEditing
         self.handle = handle
+        self.titleSize = titleSize
     }
 
     @MainActor public final class Coordinator {
@@ -129,6 +132,7 @@ public struct PhoneMarkdownEditor: UIViewRepresentable {
         view.placeholder = placeholder
         view.titlePlaceholder = titlePlaceholder
         view.meta = meta
+        if view.titleSize != titleSize { view.titleSize = titleSize }
         view.isReadOnly = !isEditable
         view.openLink = openLink
         view.resolveAttachment = resolveAttachment
