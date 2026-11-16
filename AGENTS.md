@@ -187,7 +187,7 @@ TEST_RUNNER_FEATHER_PERF=1 xcodebuild test -project FeatherNote.xcodeproj -schem
 FEATHER_SYNC_SERVER=http://127.0.0.1:8420 swift test --package-path Packages/FeatherSync --filter FeatherSyncIntegrationTests
 ```
 
-  They read verification codes from the server's log and give each account its own `X-Forwarded-For`. Prelogin, login and recover share 10 calls a minute per email.
+  They read verification codes from the server's log and give each account its own `X-Forwarded-For`. Prelogin, login and recover share 10 calls a minute per email from each address (and 10 per address).
 - Screens: render them with `TEST_RUNNER_FEATHER_SHOT_DIR=<dir> xcodebuild test … -only-testing:FeatherNoteTests/CloudScreensRender` and compare with `../universal/design/handoff/screens/desktop-onboarding-*`, `desktop-signin-*`, `desktop-settings-*`, `desktop-sync-status-*`. Copy comes from `../universal/design/ui-copy.md` word for word.
 
 ## FeatherImport (when changing an importer)
