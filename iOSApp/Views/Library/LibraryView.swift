@@ -11,20 +11,21 @@ struct LibraryView: View {
     /// The library's own search field: it searches every note and shows the results here, as Notes does.
     @State private var query = ""
     @State private var prompt: LibraryPrompt?
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.splitLayout) private var split
 
     var body: some View {
-        List {
-            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { sections } else { results }
+        Group {
+            // iPad: flat rows in the system's floating glass sidebar (board tablet-main-ipados-landscape-light);
+            // iPhone: inset cards.
+            if split { list.listStyle(.sidebar) } else { list.listStyle(.insetGrouped) }
         }
-        .listStyle(.insetGrouped)
         .overlay {
             if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let hits = model.searchHits, hits.isEmpty {
                 EmptyStateView(title: "No notes match “\(query)”", message: "Try fewer words, or check the spelling.")
             }
         }
         .scrollContentBackground(.hidden)
-        .background(GlassBackground())
+        .columnBackground(.library)
         .accessibilityIdentifier("library")
         .navigationTitle("Library")
         .navigationBarTitleDisplayMode(.large)
@@ -49,6 +50,12 @@ struct LibraryView: View {
             }
         }
         .libraryPrompts(model: model, prompt: $prompt)
+    }
+
+    private var list: some View {
+        List {
+            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { sections } else { results }
+        }
     }
 
     @ViewBuilder private var results: some View {
@@ -83,7 +90,7 @@ struct LibraryView: View {
     }
 
     /// Selection shows only where the list sits beside the library (iPad); on iPhone rows push.
-    private func isSelected(_ item: SidebarItem) -> Bool { sizeClass == .regular && model.selection == item }
+    private func isSelected(_ item: SidebarItem) -> Bool { split && model.selection == item }
 
     private func row(_ item: SidebarItem, _ name: String, symbol: String, count: Int?) -> some View {
         LibraryRow(name: name, symbol: symbol, count: count, selected: isSelected(item)) { open(item) }
@@ -101,12 +108,15 @@ struct LibraryRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Theme.s16) {
+            HStack(spacing: Theme.s16 - Theme.s4) {
                 Group {
                     if let symbol { Image(systemName: symbol).foregroundStyle(Theme.accent) } else { Color.clear }
                 }
                 .frame(width: 24)
-                Text(name).foregroundStyle(Theme.ink)
+                Text(name)
+                    .lineLimit(1)
+                    .fontWeight(selected ? .semibold : .regular)
+                    .foregroundStyle(selected ? Theme.accent : Theme.ink)
                 Spacer(minLength: Theme.s8)
                 if let count {
                     Text(count, format: .number).foregroundStyle(Theme.textSecondary).monospacedDigit()
@@ -114,12 +124,38 @@ struct LibraryRow: View {
             }
             .padding(.leading, indent)
             .frame(minHeight: 44)
+            .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 12, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowBackground(selected ? Theme.accentTint : Theme.card)
+        .hoverEffect(.highlight)
+        .libraryRowBackground(selected: selected)
         .accessibilityLabel(count.map { "\(name), \($0)" } ?? name)
         .accessibilityIdentifier("library-\(name)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
+}
+
+/// A library row's background: on iPhone an inset card (mint when selected); on iPad nothing, or a rounded mint tint
+/// for the selected row, with no separators.
+private struct LibraryRowBackground: ViewModifier {
+    let selected: Bool
+    @Environment(\.splitLayout) private var split
+
+    func body(content: Content) -> some View {
+        if split {
+            content
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(selected ? Theme.accentTint : Color.clear)
+                        .padding(.horizontal, Theme.s8))
+                .listRowSeparator(.hidden)
+        } else {
+            content.listRowBackground(selected ? Theme.accentTint : Theme.card)
+        }
+    }
+}
+
+extension View {
+    func libraryRowBackground(selected: Bool) -> some View { modifier(LibraryRowBackground(selected: selected)) }
 }

@@ -15,6 +15,12 @@ struct NoteEditorView: View {
     @State private var isEditing = false
     @State private var handle = PhoneEditorHandle()
     @State private var preview: URL?
+    @State private var width: CGFloat = 0
+    @Environment(\.splitLayout) private var split
+
+    /// iPad with room for labels (landscape): Pin, Tags and Move spelled out, as on the Mac. Narrower (portrait):
+    /// icons, with Tags and Move in ⋯ (ipad-adaptation-notes "Toolbar").
+    private var labelled: Bool { split && width >= 540 }
 
     var body: some View {
         PhoneMarkdownEditor(
@@ -26,9 +32,10 @@ struct NoteEditorView: View {
             openLink: open,
             attach: { attachSource = $0 },
             wantsTitleFocus: model.titleWantsFocus, titleTookFocus: { model.titleTookFocus() },
-            isEditing: $isEditing, handle: handle)
+            isEditing: $isEditing, handle: handle,
+            titleSize: split ? (labelled ? 38 : 34) : nil)
             .ignoresSafeArea(.container, edges: .bottom)
-            .background(GlassBackground())
+            .columnBackground(.editor)
             .safeAreaInset(edge: .top, spacing: 0) {
                 if editor.isTrashed { TrashBanner(model: model, editor: editor, sheet: $sheet) }
             }
@@ -41,6 +48,7 @@ struct NoteEditorView: View {
             .quickLookPreview($preview)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("note-editor")
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
@@ -50,25 +58,61 @@ struct NoteEditorView: View {
             }
         }
         if !editor.isTrashed {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { Task { await model.togglePin(editor.id) } } label: {
-                    Image(systemName: editor.pinned ? "star.fill" : "star")
-                        .foregroundStyle(editor.pinned ? Theme.accent : Theme.ink)
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                pinButton
+                if labelled {
+                    Button("Tags") { sheet = .tags(editor.id) }
+                    Button("Move") { sheet = .move(editor.id) }
                 }
-                .accessibilityLabel(editor.pinned ? "Unpin" : "Pin")
+                if split {
+                    ShareLink(item: NoteShare(id: editor.id, library: model.library),
+                              preview: SharePreview(Formatting.displayTitle(editor.title))) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                NoteActions.menu(NoteRef(editor), model: model, sheet: $sheet)
-                if !editor.isTrashed {
-                    Divider()
-                    Toggle(isOn: Binding(get: { model.editorMode == .raw }, set: { _ in model.toggleEditorMode() })) {
-                        Label("Markdown", systemImage: "chevron.left.forwardslash.chevron.right")
-                    }
+            Menu { moreMenu } label: { Label("Note actions", systemImage: "ellipsis") }
+        }
+    }
+
+    /// Pin: a star on iPhone and in iPad portrait; "Pin" or "Pinned" with the star in iPad landscape.
+    @ViewBuilder private var pinButton: some View {
+        Button { Task { await model.togglePin(editor.id) } } label: {
+            if labelled {
+                // An HStack, not a Label: a toolbar shows a Label's icon only.
+                HStack(spacing: Theme.s4 + 2) {
+                    Image(systemName: editor.pinned ? "star.fill" : "star")
+                    Text(editor.pinned ? "Pinned" : "Pin")
                 }
-            } label: {
-                Label("Note actions", systemImage: "ellipsis")
+                .foregroundStyle(editor.pinned ? Theme.accent : Theme.ink)
+            } else {
+                Image(systemName: editor.pinned ? "star.fill" : "star")
+                    .foregroundStyle(editor.pinned ? Theme.accent : Theme.ink)
+            }
+        }
+        .accessibilityLabel(editor.pinned ? "Unpin" : "Pin")
+    }
+
+    /// ⋯: on iPhone every note action plus Markdown; on iPad only what the toolbar doesn't show already.
+    @ViewBuilder private var moreMenu: some View {
+        if editor.isTrashed || !split {
+            NoteActions.menu(NoteRef(editor), model: model, sheet: $sheet)
+        } else if !labelled {
+            Button { sheet = .tags(editor.id) } label: { Label("Tags…", systemImage: "tag") }
+            Button { sheet = .move(editor.id) } label: { Label("Move to Notebook…", systemImage: "folder") }
+        }
+        if !editor.isTrashed {
+            Divider()
+            Toggle(isOn: Binding(get: { model.editorMode == .raw }, set: { _ in model.toggleEditorMode() })) {
+                Label("Markdown", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+            if split {
+                Divider()
+                Button(role: .destructive) { Task { await model.trashWithUndo(editor.id) } } label: {
+                    Label("Move to Trash", systemImage: "trash")
+                }
             }
         }
     }

@@ -30,6 +30,16 @@ enum Theme {
     static let swipeMove = color(0x13243A, 0x2C3E55)
     static let swipeTags = color(0x4A5D75, 0x56677D)
 
+    // iPad glass panels (boards tablet-main-ipados-landscape-light and -dark).
+    static let panelLibrary = color(0xFFFFFF, 0x1C242C, 0.42, 0.55)
+    static let panelList = color(0xFFF0E6, 0x302422, 0.5, 0.5)
+    static let panelEditor = color(0xF0F8F3, 0x182622, 0.62, 0.6)
+    static let panelEdge = color(0xFFFFFF, 0xFFFFFF, 0.7, 0.08)
+    /// The open note's row in the list, with an accent bar on its leading edge.
+    static let rowSelected = color(0xFFFFFF, 0xFFFFFF, 0.85, 0.1)
+    static let panelRadius: CGFloat = 24
+    static let panelGap: CGFloat = 12
+
     /// Note tiles: peach, mint, lavender, sky (NoteThumbnail.tint).
     static func tile(_ tint: Int) -> Color {
         [color(0xF7DCCB, 0x4A3329), color(0xDCEDE3, 0x23402F), color(0xE4E0F3, 0x332E4A), color(0xDCE6F2, 0x26344A)][tint & 3]

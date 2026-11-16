@@ -56,6 +56,21 @@ final class EditorUITests: FeatherUITestCase {
         XCTAssertEqual(bodyText, "- [ ] tomatoes")
     }
 
+    /// iPad with a hardware keyboard: ⌘N starts a note with its title focused, as on the Mac.
+    func testCommandNStartsANote() throws {
+        guard isPad else { throw XCTSkip("a hardware keyboard shortcut: iPad") }
+        launch()
+        showLibrary()
+        libraryItem("All Notes").tap()
+        waitFor(row("Groceries"))
+        app.typeKey("n", modifierFlags: .command)
+        waitFor(title, 5)
+        app.typeText("Kiln")
+        let named = NSPredicate(format: "value == %@", "Kiln")
+        expectation(for: named, evaluatedWith: title)
+        waitForExpectations(timeout: 5)
+    }
+
     func testUndoFromTheBar() {
         launch()
         newNote()

@@ -8,6 +8,7 @@ struct NoteRow: View {
     let model: AppModel
     let summary: NoteSummary
     var selected = false
+    @Environment(\.splitLayout) private var split
 
     var body: some View {
         HStack(spacing: Theme.s16) {
@@ -31,11 +32,27 @@ struct NoteRow: View {
         }
         .padding(Theme.s8)
         .padding(.trailing, Theme.s8)
-        .background(selected ? Theme.raised : Theme.card, in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .background { background }
+        .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .hoverEffect(.highlight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Formatting.rowAccessibilityLabel(summary: summary, notebookName: notebookName, now: Date()))
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// iPhone: every row is a card. iPad: only the open note's row, with an accent bar on its leading edge (board
+    /// tablet-main-ipados-landscape-light).
+    @ViewBuilder private var background: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+        if !split {
+            shape.fill(selected ? Theme.raised : Theme.card)
+        } else if selected {
+            shape.fill(Theme.rowSelected)
+                .overlay(alignment: .leading) {
+                    Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, Theme.s16).offset(x: -2)
+                }
+        }
     }
 
     private var notebookName: String? { summary.notebookID.flatMap(model.notebookName) }
