@@ -19,6 +19,19 @@ final class ManageUITests: FeatherUITestCase {
         app.alerts.buttons[button].tap()
     }
 
+    /// Replaces the name in the Rename alert, whose field has keyboard focus as the alert opens. It never taps the
+    /// field: on iOS 27 a tap on the focused field shows the edit menu and drops the keyboard, which comes back as
+    /// the text is typed and moves the alert up under the next tap.
+    func renameInAlert(from old: String, to new: String) {
+        let field = app.alerts.textFields.firstMatch
+        waitFor(field)
+        waitFor(app.keyboards.firstMatch)
+        let filled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", old), object: field)
+        XCTAssertEqual(XCTWaiter().wait(for: [filled], timeout: 5), .completed, "the field doesn't show \(old)")
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count) + new)
+        app.alerts.buttons["Rename"].tap()
+    }
+
     func longPress(_ name: String, then item: String) {
         let e = libraryItem(name)
         waitFor(e)
@@ -34,10 +47,7 @@ final class ManageUITests: FeatherUITestCase {
         answerAlert("Garden", "Create Notebook")
         waitFor(libraryItem("Garden"))
         longPress("Garden", then: "Rename…")
-        let field = app.alerts.textFields.firstMatch
-        waitFor(field)
-        field.clearAndType("Allotment")
-        app.alerts.buttons["Rename"].tap()
+        renameInAlert(from: "Garden", to: "Allotment")
         waitFor(libraryItem("Allotment"))
         XCTAssertFalse(libraryItem("Garden").exists)
     }
@@ -59,21 +69,10 @@ final class ManageUITests: FeatherUITestCase {
         // The tags are the library's last row; iOS 27's floating search field covers them until the list scrolls.
         app.descendants(matching: .any)["library"].firstMatch.swipeUp()
         longPress("ideas", then: "Rename…")
-        let field = app.alerts.textFields.firstMatch
-        waitFor(field)
-        field.clearAndType("someday")
-        app.alerts.buttons["Rename"].tap()
+        renameInAlert(from: "ideas", to: "someday")
         waitFor(libraryItem("someday"))
-    }
-}
-
-extension XCUIElement {
-    /// Replaces a text field's contents.
-    func clearAndType(_ text: String) {
-        tap()
-        if let current = value as? String, !current.isEmpty, current != placeholderValue {
-            typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
-        }
-        typeText(text)
+        // Each chip's menu acts on its own tag: the long press on "ideas" must not rename "hardware".
+        XCTAssertTrue(libraryItem("hardware").exists, "hardware was renamed instead of ideas")
+        XCTAssertFalse(libraryItem("ideas").exists)
     }
 }

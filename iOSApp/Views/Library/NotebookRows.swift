@@ -88,7 +88,12 @@ struct TagChips: View {
     var body: some View {
         FlowLayout(spacing: Theme.s8) {
             ForEach(model.tags) { tag in
-                Button { open(.tag(tag.id)) } label: {
+                // A menu per chip: a tap opens the tag, a long press shows its menu. All chips share one List row,
+                // and a `.contextMenu` inside a row belongs to the whole row on iPhone, so every chip showed the
+                // first tag's menu (and renamed or deleted that tag).
+                Menu {
+                    LibraryMenus.tag(tag, prompt: $prompt)
+                } label: {
                     Text(tag.name)
                         .font(.subheadline)
                         .foregroundStyle(Theme.ink)
@@ -97,9 +102,11 @@ struct TagChips: View {
                         .background(model.selection == .tag(tag.id) ? Theme.accentTint : Theme.raised, in: Capsule())
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
+                } primaryAction: {
+                    open(.tag(tag.id))
                 }
+                .menuStyle(.button)
                 .buttonStyle(.plain)
-                .contextMenu { LibraryMenus.tag(tag, prompt: $prompt) }
                 .accessibilityIdentifier("library-\(tag.name)")
             }
         }
