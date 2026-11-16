@@ -6,7 +6,7 @@
   "scripts": {
     "ios": "bash scripts/run_ios_sim.sh --demo",
     "ios:own": "bash scripts/run_ios_sim.sh",
-    "ipad": "bash scripts/run_ios_sim.sh --demo \"iPad Pro 13-inch (M5)\"",
+    "ipad": "bash scripts/run_ios_sim.sh --demo \"iPad Pro 11-inch (M5)\"",
     "sim": "bash scripts/run_ios_sim.sh --open-only",
     "test": "bash scripts/test_all.sh"
   }

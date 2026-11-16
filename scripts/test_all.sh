@@ -33,7 +33,7 @@ run_ios_app() {   # destination, log
 }
 
 # The first available simulator whose name starts with $1 (iPhone, iPad), as "<udid> <name>". Names can hold
-# parentheses ("iPad Pro 13-inch (M5)"), so the device is addressed by its id.
+# parentheses ("iPad Pro 11-inch (M5)"), so the device is addressed by its id.
 first_simulator() {
   xcrun simctl list devices available | sed -nE "s/^ +($1.*) \(([0-9A-F-]{36})\) \(.*/\2 \1/p" | head -n 1
 }

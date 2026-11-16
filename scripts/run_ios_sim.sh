@@ -4,7 +4,7 @@
 # Usage: scripts/run_ios_sim.sh [--demo] [--open-only] ["<simulator name>"]
 #   --demo        a fresh temporary library with the demo notes (nothing in the simulator's own library changes)
 #   --open-only   only boot the simulator and show it; no build
-#   name          default: FEATHER_SIM, else "iPhone 18 Pro"; e.g. "iPad Pro 13-inch (M5)"
+#   name          default: FEATHER_SIM, else "iPhone 17"; e.g. "iPad Pro 11-inch (M5)"
 # The simulator shows in Device Hub (Xcode 27 replaced Simulator.app with it) or, on older Xcode, Simulator.app.
 # The build goes to build/sim-run; its log to build/sim-run.log.
 set -euo pipefail
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 demo=0
 open_only=0
-name="${FEATHER_SIM:-iPhone 18 Pro}"
+name="${FEATHER_SIM:-iPhone 17}"
 for arg in "$@"; do
   case "$arg" in
     --demo) demo=1 ;;

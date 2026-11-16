@@ -60,6 +60,14 @@ swift test -c release --package-path Packages/FeatherCore --filter PerformanceTe
 swift run --package-path Packages/FeatherCore fncore list <library-dir>
 ```
 
+## Simulators (when choosing, creating or cleaning up simulator devices and runtimes)
+
+Each simulator device keeps several GB of data, so keep as few as the tests need:
+
+- **Devices:** at most one iPhone and one iPad on the latest runtime: `iPhone 17` and `iPad Pro 11-inch (M5)`, the names the commands above use. Run, test and look at the app on those two; never create another iPhone or iPad, and never pick a different model for a one-off run. The earliest runtime gets only the one iPhone `scripts/ios18_destination.sh` creates (`FeatherMark iOS 18`).
+- **Runtimes:** at most two iOS runtimes: the latest one and the earliest the app supports (iOS 18, the minimum in "Decisions"). When a new iOS runtime is installed, the previous latest goes.
+- **Check:** `xcrun simctl list devices` and `xcrun simctl list runtimes`. If more devices or runtimes are installed, list the extras and ask the user before removing them: `xcrun simctl delete <udid>` for a device, `xcrun simctl runtime delete <id>` for a runtime. `xcrun simctl delete unavailable` removes devices whose runtime is gone.
+
 ## Code layout (when adding code, or deciding where it goes)
 
 | Package | Platforms | Owns |
