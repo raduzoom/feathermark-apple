@@ -20,6 +20,12 @@ import UIKit
     return window
 }
 
+/// How long a test waits for async work (an import landing, background styling) before failing. Suites run in
+/// parallel and share the main actor, so another suite's editor setup and layout can hold it for seconds; on the
+/// iOS 27 simulator 5 s was too short (imports of 300 ms timed out). `waitFor` returns as soon as its condition
+/// holds, so a passing test never waits this long.
+let asyncDeadline: TimeInterval = 30
+
 /// An editor showing `text` in a 390 × 800 window.
 @MainActor func makeEditor(_ text: String, window: UIWindow? = nil) -> PhoneEditorView {
     let editor = PhoneEditorView.make()
@@ -249,7 +255,7 @@ import UIKit
         editor.load(text)
         #expect(editor.restyledCharacters <= 40_000)
         #expect(!editor.isFullyStyled)
-        #expect(await waitFor({ editor.isFullyStyled }, timeout: 10))
+        #expect(await waitFor({ editor.isFullyStyled }, timeout: asyncDeadline))
         let last = (text as NSString).range(of: "bold", options: .backwards).location
         let f = editor.textStorage.attribute(.font, at: last, effectiveRange: nil) as! UIFont
         #expect(f.fontDescriptor.symbolicTraits.contains(.traitBold))
@@ -278,7 +284,7 @@ import UIKit
         }
         editor.selectedRange = NSRange(location: 2, length: 0)
         editor.paste(nil)
-        #expect(await waitFor({ editor.textStorage.string != "ab" }, timeout: 5))
+        #expect(await waitFor({ editor.textStorage.string != "ab" }, timeout: asyncDeadline))
         #expect(imported.count == 1)
         #expect(editor.textStorage.string == "ab\n![](feather://attachment/01P)")
         editor.undoManager?.undo()
