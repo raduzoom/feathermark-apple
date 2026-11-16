@@ -4,6 +4,8 @@ Rules for AI agents in this repo (`feathermark-apple`, folder `apple/`: the Mac 
 
 ## Build and test (before saying a change works)
 
+Run UI automation tests only after the user says yes for that run: they take a long time and block the computer while they drive the screen (Mac) or a simulator. That covers the UI test targets (`FeatherNoteUITests`, `FeatherMarkiOSUITests`, the screenshot tests among them) and every command that includes them: `scripts/test_all.sh` and a whole-scheme `xcodebuild test` of `FeatherNote` or `FeatherMarkiOS`. Without that yes, run only the non-UI tests (e.g. `swift test`, `scripts/test_ios_packages.sh`, `-only-testing:FeatherNoteTests`, `-only-testing:FeatherMarkiOSTests`), and say the UI tests weren't run.
+
 Everything, macOS and iOS (the shared packages, the Mac app, the iPhone and iPad app, and iOS 18 when that runtime is installed), stopping at the first failure (the local stand-in for "CI green"; prints `all tests: OK`):
 
 ```bash
