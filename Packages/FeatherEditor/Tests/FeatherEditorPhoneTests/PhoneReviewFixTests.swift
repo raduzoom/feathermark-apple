@@ -26,7 +26,7 @@ import UIKit
         editor.attachPicked([try madeFile()], cleaningUp: [])
         editor.selectedRange = NSRange(location: 9, length: 0)
         editor.insertText("z")
-        #expect(await waitFor({ editor.textStorage.string.contains("01X") }, timeout: 5))
+        #expect(await waitFor({ editor.textStorage.string.contains("01X") }, timeout: asyncDeadline))
         let text = editor.textStorage.string as NSString
         #expect(editor.selectedRange == NSRange(location: text.range(of: "morez").location + 5, length: 0), "caret stays after the typed z")
     }

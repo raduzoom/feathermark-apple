@@ -80,8 +80,14 @@ private let day: Int64 = 86_400_000
         m.editBody("hello")
         m.editTitle("Hi")
         #expect(try await m.library.note(id)?.body == "")
-        try await Task.sleep(for: .milliseconds(800))
-        let saved = try await m.library.note(id)
+        // The save lands after `saveDelay`: poll for it rather than sleep a fixed time, which failed on a busy
+        // iOS simulator (2026-11-16). Returns as soon as the save and the list both show it.
+        let deadline = ContinuousClock.now + .seconds(30)
+        var saved = try await m.library.note(id)
+        while (saved?.body != "hello" || m.notes.first?.title != "Hi"), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+            saved = try await m.library.note(id)
+        }
         #expect(saved?.body == "hello" && saved?.title == "Hi")
         #expect(m.notes.first?.title == "Hi")
     }

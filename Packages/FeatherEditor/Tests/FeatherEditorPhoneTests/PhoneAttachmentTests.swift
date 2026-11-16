@@ -29,7 +29,7 @@ import UIKit
         editor.requestAttachment(.photoLibrary)
         editor.attachPicked([file], cleaningUp: [file])
         editor.load("other note")
-        #expect(await waitFor({ finished }, timeout: 5))
+        #expect(await waitFor({ finished }, timeout: asyncDeadline))
         try? await Task.sleep(for: .milliseconds(50))
         #expect(editor.textStorage.string == "other note")
         #expect(!FileManager.default.fileExists(atPath: file.path), "the temporary copy is gone")
@@ -46,7 +46,7 @@ import UIKit
         editor.attachPicked([try madeFile()], cleaningUp: [])
         editor.selectedRange = NSRange(location: 0, length: 0)
         editor.insertText("12345")
-        #expect(await waitFor({ editor.textStorage.string.contains("01X") }, timeout: 5))
+        #expect(await waitFor({ editor.textStorage.string.contains("01X") }, timeout: asyncDeadline))
         #expect(editor.textStorage.string == "12345abc\n[x.pdf](feather://attachment/01X)")
     }
 
@@ -56,7 +56,7 @@ import UIKit
         editor.importFiles = { _ in ["![a](feather://attachment/01A)", "[b.pdf](feather://attachment/01B)"] }
         editor.requestAttachment(.files)
         editor.attachPicked([try madeFile(), try madeFile()], cleaningUp: [])
-        #expect(await waitFor({ editor.textStorage.string != "before\nafter" }, timeout: 5))
+        #expect(await waitFor({ editor.textStorage.string != "before\nafter" }, timeout: asyncDeadline))
         #expect(editor.textStorage.string == "before\n![a](feather://attachment/01A)\n[b.pdf](feather://attachment/01B)\nafter")
         editor.undoManager?.undo()
         #expect(editor.textStorage.string == "before\nafter")
@@ -82,9 +82,9 @@ import UIKit
         editor.resolveAttachment = { $0 == "feather://attachment/IMG" ? png : nil }
         let imageAt = (text as NSString).range(of: "![p]").location
         editor.load(text)
-        #expect(await waitFor({ editor.isFullyStyled }, timeout: 10))
+        #expect(await waitFor({ editor.isFullyStyled }, timeout: asyncDeadline))
         editor.restyledCharacters = 0
-        #expect(await waitFor({ editor.imageCache.image(for: png) != nil && editor.restyledCharacters > 0 }, timeout: 10))
+        #expect(await waitFor({ editor.imageCache.image(for: png) != nil && editor.restyledCharacters > 0 }, timeout: asyncDeadline))
         try? await Task.sleep(for: .milliseconds(50))
         #expect(editor.restyledCharacters > 0 && editor.restyledCharacters < 2_000, "restyled \(editor.restyledCharacters)")
         // the block now reserves the image's height at the measure (400 × 200 shown 358 wide: 179 high)
@@ -99,13 +99,13 @@ import UIKit
         let ok = try madeFile()
         editor.requestAttachment(.files)
         editor.attachPicked([ok], cleaningUp: [ok])
-        #expect(await waitFor({ !FileManager.default.fileExists(atPath: ok.path) }, timeout: 5))
+        #expect(await waitFor({ !FileManager.default.fileExists(atPath: ok.path) }, timeout: asyncDeadline))
         // failure: nothing imported
         editor.importFiles = { _ in [] }
         let bad = try madeFile()
         editor.requestAttachment(.files)
         editor.attachPicked([bad], cleaningUp: [bad])
-        #expect(await waitFor({ !FileManager.default.fileExists(atPath: bad.path) }, timeout: 5))
+        #expect(await waitFor({ !FileManager.default.fileExists(atPath: bad.path) }, timeout: asyncDeadline))
         #expect(editor.temporaryFiles.isEmpty)
         // cancelled: the copies made for it go too
         let cancelled = try madeFile()

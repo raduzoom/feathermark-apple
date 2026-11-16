@@ -108,7 +108,7 @@ import UIKit
         #expect(!done)
         let window = hostWindow()
         window.rootViewController!.view.addSubview(e)
-        #expect(await waitFor({ done }, timeout: 3))
+        #expect(await waitFor({ done }, timeout: asyncDeadline))
         #expect(e.titleView.isFirstResponder)
         _ = e.titleView.resignFirstResponder()
         window.isHidden = true

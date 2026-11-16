@@ -137,7 +137,7 @@ import UIKit
         #expect(asked == [.photoLibrary])
         #expect(!e.isBlockMenuOpen)
         e.attachPicked([URL(fileURLWithPath: "/tmp/x.png")], cleaningUp: [])
-        #expect(await waitFor({ e.textStorage.string != "hello\n" }, timeout: 5))
+        #expect(await waitFor({ e.textStorage.string != "hello\n" }, timeout: asyncDeadline))
         // a blank line above: right under text, an image would share its paragraph and show as a chip
         #expect(e.textStorage.string == "hello\n\n![](feather://attachment/01I)")
     }
