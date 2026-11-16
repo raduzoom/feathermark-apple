@@ -669,6 +669,19 @@ extension EditorTextView {
         var urls = (pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
         var madeFiles: [URL] = []   // temporary files made here, removed once their import finishes
         let hasText = pboard.availableType(from: [.string]) != nil
+        // PDF data alone on Continuity Camera's own pasteboard is a scan: one image per page. A PDF on the
+        // clipboard or dragged in stays a PDF.
+        if urls.isEmpty, !hasText, type == .pdf, pboard.name != .general, pboard.name != .drag, let data = pboard.data(forType: .pdf) {
+            if let scan = pendingScan {
+                pendingScan = nil
+                if scan.generation == loadGeneration, anchors[scan.anchor] != nil {
+                    insertScan(data, anchor: scan.anchor, generation: scan.generation, asBlock: true)
+                    return true
+                }
+            }
+            insertScan(data, anchor: addAnchor(selectedRange()), generation: loadGeneration, asBlock: false)
+            return true
+        }
         if urls.isEmpty, !hasText, type == .pdf, let data = pboard.data(forType: .pdf) {
             let folder = FileManager.default.temporaryDirectory.appending(path: "FeatherScan-\(UUID().uuidString)", directoryHint: .isDirectory)
             let file = folder.appending(path: Self.scanFileName())
@@ -695,6 +708,40 @@ extension EditorTextView {
         }
         importAndInsert(urls, anchor: addAnchor(selectedRange()), generation: loadGeneration, cleaningUp: madeFiles)
         return true
+    }
+
+    /// A scan's pages become JPEGs (`ScanImages`), rendered off the main thread, then go in at the anchor like any
+    /// imported files, in one undo step. Dropped, with its temporary folder, if another note loaded meanwhile.
+    /// A scan that can't be read goes in as the PDF it came as.
+    func insertScan(_ pdf: Data, anchor id: Int, generation: Int, asBlock: Bool) {
+        let date = Date()
+        let fallbackName = Self.scanFileName(at: date)
+        Task { @MainActor [weak self] in
+            let written = await Task.detached(priority: .userInitiated) {
+                Self.writeScanPages(pdf, date: date, fallbackName: fallbackName)
+            }.value
+            guard let self, let written, loadGeneration == generation else {
+                if let written { try? FileManager.default.removeItem(at: written.folder) }
+                _ = self?.removeAnchor(id)
+                return
+            }
+            importAndInsert(written.files, anchor: id, generation: generation, cleaningUp: [written.folder], asBlock: asBlock)
+        }
+    }
+
+    /// Writes the scan's pages as JPEGs (or, when none render, the PDF itself) into a new `FeatherScan-<uuid>` folder.
+    nonisolated static func writeScanPages(_ pdf: Data, date: Date, fallbackName: String) -> (folder: URL, files: [URL])? {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "FeatherScan-\(UUID().uuidString)", directoryHint: .isDirectory)
+        guard (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)) != nil else { return nil }
+        let pages = ScanImages.jpegPages(fromPDF: pdf)
+        let contents = pages.isEmpty ? [(fallbackName, pdf)] : Array(zip(ScanImages.fileNames(count: pages.count, at: date), pages))
+        var files: [URL] = []
+        for (name, data) in contents {
+            let file = folder.appending(path: name)
+            guard (try? data.write(to: file)) != nil else { try? FileManager.default.removeItem(at: folder); return nil }
+            files.append(file)
+        }
+        return (folder, files)
     }
 
     /// Keeps `range` as an anchor that later edits move; returns its id.
