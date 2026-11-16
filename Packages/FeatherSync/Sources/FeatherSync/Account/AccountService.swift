@@ -99,7 +99,7 @@ public actor AccountService {
 
     public func verify(email: String, code: String, deviceName: String) async throws -> SignedIn {
         guard let pending, pending.email == email else { throw AccountError.codeExpired }
-        let r = try await mapped { try await self.bareClient().verify(email: email, code: code, deviceName: deviceName) }
+        let r = try await mapped { try await self.bareClient().verify(email: email, code: code, authKey: pending.account.authKey, deviceName: deviceName) }
         try store(email: email, token: r.token, masterKey: pending.account.masterKey)
         self.pending = nil
         return try signedIn(email: email, r)

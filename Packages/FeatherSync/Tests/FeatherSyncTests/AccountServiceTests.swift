@@ -21,6 +21,9 @@ final class FakeAuthServer: @unchecked Sendable {
             signup = body
             return (202, [:], Data())
         case "/v1/auth/verify":
+            guard body["auth_key"] as? String == signup?["auth_key"] as? String else { // the code counts only with the signup's key
+                return Stub.json(400, #"{"error":{"code":"verification_invalid","message":"x"}}"#)
+            }
             return Stub.json(200, #"{"token":"fn1_\#(String(repeating: "A", count: 43))","device_id":"01JC8ZN0AB1CD2EF3GH4JK5MN7","account":\#(account)}"#)
         case "/v1/auth/prelogin":
             let salt = (signup?["salt"] as? String) ?? Data(count: 16).base64EncodedString()

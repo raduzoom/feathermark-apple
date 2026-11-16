@@ -83,8 +83,10 @@ public final class APIClient: Sendable {
 
     public func signup(_ body: SignupRequest) async throws { _ = try await send("POST", "auth/signup", json: body, auth: false) }
 
-    public func verify(email: String, code: String, deviceName: String) async throws -> SessionResponse {
-        try await call("POST", "auth/verify", json: ["email": email, "code": code, "device_name": deviceName], auth: false)
+    /// The code counts only together with the auth key the signup sent.
+    public func verify(email: String, code: String, authKey: Data, deviceName: String) async throws -> SessionResponse {
+        try await call("POST", "auth/verify",
+                       json: ["email": email, "code": code, "auth_key": authKey.base64EncodedString(), "device_name": deviceName], auth: false)
     }
 
     public func resend(email: String) async throws { _ = try await send("POST", "auth/resend", json: ["email": email], auth: false) }
