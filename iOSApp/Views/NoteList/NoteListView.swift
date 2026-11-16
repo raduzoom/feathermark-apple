@@ -7,18 +7,23 @@ struct NoteListView: View {
     let model: AppModel
     let openNote: (ULID) -> Void
     let newNote: () -> Void
+    /// ⌘F bumps this to focus the search field.
+    var searchRequest = 0
+    @FocusState private var searchFocused: Bool
     @State private var sheet: NoteSheet?
     @State private var confirmEmptyTrash = false
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.splitLayout) private var split
 
     var body: some View {
         content
             .scrollContentBackground(.hidden)
-            .background(GlassBackground())
+            .columnBackground(.list)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: Binding(get: { model.searchText }, set: { model.typeSearch($0) }),
                         placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
+            .searchFocused($searchFocused)
+            .onChange(of: searchRequest) { searchFocused = true }
             .safeAreaInset(edge: .top, spacing: 0) {
                 if model.isSearching, let id = model.searchNotebookID, let name = model.notebookName(id) {
                     SearchScopeToken(name: name) { Task { await model.setSearchNotebook(nil) } }
@@ -32,6 +37,12 @@ struct NoteListView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Empty Trash…", role: .destructive) { confirmEmptyTrash = true }
                     }
+                } else if split && canCompose {
+                    // iPad: New Note sits in the list's header (board tablet-main-ipados-landscape-light).
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: newNote) { Label("New Note", systemImage: "square.and.pencil") }
+                            .tint(Theme.accent)
+                    }
                 }
             }
             .noteSheets(model: model, sheet: $sheet)
@@ -42,6 +53,9 @@ struct NoteListView: View {
                 Text(emptyTrash.message)
             }
     }
+
+    /// New Note shows everywhere but the Trash and the first-launch screen (which has its own button).
+    private var canCompose: Bool { model.selection != .trash && model.emptyState != .firstLaunch }
 
     private var emptyTrash: Formatting.Confirmation { Formatting.emptyTrashConfirmation(count: model.counts.trash) }
 
@@ -92,7 +106,7 @@ struct NoteListView: View {
     @ViewBuilder private var rows: some View {
             ForEach(model.notes) { summary in
                 Button { openNote(summary.id) } label: {
-                    NoteRow(model: model, summary: summary, selected: sizeClass == .regular && model.selectedNoteID == summary.id)
+                    NoteRow(model: model, summary: summary, selected: split && model.selectedNoteID == summary.id)
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(Color.clear)
@@ -112,9 +126,9 @@ struct NoteListView: View {
                 UndoToast(offer: undo) { Task { await model.undoLastTrash() } }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            if model.selection != .trash && model.emptyState != .firstLaunch {
+            if canCompose {
                 HStack(spacing: 0) {
-                    Color.clear.frame(width: 44, height: 44)
+                    if !split { Color.clear.frame(width: 44, height: 44) }
                     Group {
                         if !model.isSearching && !model.notes.isEmpty {
                             Text("\(model.notes.count) \(model.notes.count == 1 ? "note" : "notes") · on this \(DeviceWord.current) only")
@@ -123,13 +137,15 @@ struct NoteListView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    Button(action: newNote) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.title3)
-                            .foregroundStyle(Theme.accent)
-                            .frame(width: 44, height: 44)
+                    if !split {
+                        Button(action: newNote) {
+                            Image(systemName: "square.and.pencil")
+                                .font(.title3)
+                                .foregroundStyle(Theme.accent)
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("New Note")
                     }
-                    .accessibilityLabel("New Note")
                 }
                 .padding(.horizontal, Theme.s8)
             }

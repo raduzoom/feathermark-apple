@@ -53,6 +53,7 @@ struct FeatherMarkApp: App {
             .preferredColorScheme(Self.forcedColorScheme)
             .task { loader.start() }
         }
+        .commands { FeatherCommands() }
         .onChange(of: scenePhase) { _, phase in
             // Every edit reaches the database before the app can be suspended or killed.
             if phase == .background, let model = loader.model { Task { await model.flush() } }

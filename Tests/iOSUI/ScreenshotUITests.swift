@@ -39,7 +39,9 @@ final class ScreenshotUITests: FeatherUITestCase {
             origin.withOffset(CGVector(dx: f.maxX - 24, dy: f.midY))
                 .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: f.maxX - 240, dy: f.midY)))
             shot("swipe", scheme)
-            bread.swipeRight()   // closes the revealed actions
+            // closes the revealed actions: a tap beside them, on the count line (on iPad the row's label has slid out
+            // of view, and its leading edge sits under the floating library)
+            app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "notes · on this")).firstMatch.tap()
 
             row("Weather station build").tap()
             let body = app.textViews["note-body"]

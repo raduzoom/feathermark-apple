@@ -75,7 +75,7 @@ private struct NotebookRow: View {
                 .accessibilityLabel(expanded ? "Hide sub-notebooks of \(notebook.name)" : "Show sub-notebooks of \(notebook.name)")
             }
         }
-        .listRowBackground(selected ? Theme.accentTint : Theme.card)
+        .libraryRowBackground(selected: selected)
     }
 }
 
