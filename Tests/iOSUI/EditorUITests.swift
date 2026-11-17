@@ -17,9 +17,16 @@ final class EditorUITests: FeatherUITestCase {
         waitFor(body)
     }
 
-    /// Goes back to the list on iPhone; on iPad the list is beside the note.
+    /// Goes back to the list on iPhone. On iPad the list is beside the note: it ends editing instead, because the
+    /// keyboard's formatting bar spans the window and covers the list's rows on the 11-inch iPad (a tap on a row
+    /// would press Bold).
     func backToList() {
-        guard !isPad else { return }
+        if isPad {
+            let done = app.buttons["Done"]
+            if done.exists { done.tap() }
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "the keyboard went away")
+            return
+        }
         let back = app.navigationBars.buttons.firstMatch
         if back.exists { back.tap() }
     }

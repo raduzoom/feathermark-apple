@@ -16,12 +16,11 @@ final class ManageUITests: FeatherUITestCase {
         let field = app.alerts.textFields.firstMatch
         waitFor(field)
         field.typeText(text)
-        app.alerts.buttons[button].tap()
+        tapWhenSettled(app.alerts.buttons[button])
     }
 
     /// Replaces the name in the Rename alert, whose field has keyboard focus as the alert opens. It never taps the
-    /// field: on iOS 27 a tap on the focused field shows the edit menu and drops the keyboard, which comes back as
-    /// the text is typed and moves the alert up under the next tap.
+    /// field: on iOS 27 a tap on the focused field shows the edit menu.
     func renameInAlert(from old: String, to new: String) {
         let field = app.alerts.textFields.firstMatch
         waitFor(field)
@@ -29,7 +28,27 @@ final class ManageUITests: FeatherUITestCase {
         let filled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", old), object: field)
         XCTAssertEqual(XCTWaiter().wait(for: [filled], timeout: 5), .completed, "the field doesn't show \(old)")
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count) + new)
-        app.alerts.buttons["Rename"].tap()
+        tapWhenSettled(app.alerts.buttons["Rename"])
+    }
+
+    /// Taps an alert's button once the alert has stopped moving. On the iOS 27 simulator, typed text hides the
+    /// on-screen keyboard (the alert slides to the middle) and the keyboard comes back just after the last key,
+    /// sliding the alert up again; a tap during that slide lands where the button was and the alert stays open.
+    func tapWhenSettled(_ button: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        waitFor(button, file: file, line: line)
+        for attempt in 1...2 where button.exists {
+            var last = button.frame, still = 0
+            let deadline = Date().addingTimeInterval(5)
+            while still < 6, Date() < deadline {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+                let now = button.frame
+                still = now == last ? still + 1 : 0
+                last = now
+            }
+            button.tap()
+            // The tap landed if the alert went away; otherwise it moved under the tap, so try once more.
+            if attempt == 2 || app.alerts.firstMatch.waitForNonExistence(timeout: 2) { return }
+        }
     }
 
     func longPress(_ name: String, then item: String) {
