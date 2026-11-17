@@ -43,10 +43,14 @@ public actor SyncEngine {
 
     // MARK: Test hooks
 
-    /// Tests only: called with "afterPush" (item nil) and "beforeApply" (the pulled item's id), so a test can
-    /// make a local edit at exactly that moment.
+    /// Tests only: called with "afterPush" and "beforePull" (each page; item nil), and "beforeApply" and
+    /// "beforeResolve" (the pulled item's id), so a test can make a local edit at exactly that moment.
     private var testHook: (@Sendable (String, ULID?) async -> Void)?
     func setTestHook(_ hook: (@Sendable (String, ULID?) async -> Void)?) { testHook = hook }
+
+    /// Items per pull page; tests make it small to get several pages.
+    private var pullLimit = 500
+    func setPullLimit(_ limit: Int) { pullLimit = limit }
 
     // MARK: One pass
 
@@ -73,18 +77,27 @@ public actor SyncEngine {
             try Task.checkCancellation()
             _ = try await library.collectChanges()
             let dirty = try await library.dirtyItems()
-            if pass == 1 && dirty.isEmpty { break }
+            if pass == 1 && dirty.isEmpty && report.skipped == 0 { break }
+            report.skipped = 0   // only the last round's skips count: a skip the repeat healed is gone
+            var conflicts: [RemoteItem] = []
             if !report.readOnly {
                 do {
-                    try await push(dirty, client: client, master: master, report: &report)
+                    try await push(dirty, client: client, master: master, report: &report, conflicts: &conflicts)
                     await testHook?("afterPush", nil)
                 } catch let e as APIError where e.code == "read_only" {
                     report.readOnly = true
                 }
             }
             try await pull(client: client, master: master, report: &report)
+            // sync-protocol.md step 3: a push conflict is resolved against the server's current item. After the
+            // pull, so anything it references (a tag, a notebook) has arrived; an item the pull already resolved is
+            // passed over by take's version check. This also heals an item whose newer version the pull won't
+            // return again.
+            for current in conflicts {
+                if try await take(current, client: client, master: master, report: &report, reapply: true) == .skipped { report.skipped += 1 }
+            }
             _ = try await library.collectChanges()
-            if try await library.dirtyItems().filter({ $0.metaVersion <= 1 }).isEmpty || report.readOnly { break }
+            if report.skipped == 0, try await library.dirtyItems().filter({ $0.metaVersion <= 1 }).isEmpty || report.readOnly { break }
         }
         return (report, changedIDs)
     }
@@ -95,7 +108,8 @@ public actor SyncEngine {
 
     private static func sha(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
 
-    private func push(_ dirty: [SyncItem], client: APIClient, master: Data, report: inout SyncReport) async throws {
+    private func push(_ dirty: [SyncItem], client: APIClient, master: Data, report: inout SyncReport,
+                      conflicts: inout [RemoteItem]) async throws {
         let order: [ItemType: Int] = [.attachment: 0, .notebook: 1, .tag: 1, .note: 2]
         let items = dirty.filter { $0.metaVersion <= 1 }.sorted { (order[$0.type]!, $0.dirtySeq ?? 0) < (order[$1.type]!, $1.dirtySeq ?? 0) }
         var pending: [Pending] = []
@@ -138,10 +152,8 @@ public actor SyncEngine {
                 case let .accepted(_, version, _):
                     try await library.markPushed(p.item.id, version: version, blobSHA: p.blobSHA, ifDirtySeq: p.item.dirtySeq!)
                     report.pushed += 1
-                case .conflict:
-                    // left dirty: the pull returns the server's newer version in seq order, after anything it
-                    // depends on (a tag, a notebook), and resolves it there
-                    break
+                case let .conflict(_, current):
+                    conflicts.append(current)   // left dirty; resolved against `current` after the pull (pass)
                 case let .rejected(_, code):
                     report.rejected[p.item.id.description] = code
                     if code == "blob_missing" { try await library.markBodyDirty(p.item.id) }   // upload it again next pass
@@ -180,9 +192,21 @@ public actor SyncEngine {
         deferred = []
         while true {
             try Task.checkCancellation()
-            let page = try await client.pull(libraryID: libraryID, cursor: cursor)
+            await testHook?("beforePull", nil)
+            let page = try await client.pull(libraryID: libraryID, cursor: cursor, limit: pullLimit)
+            var skipped = 0
             for remote in page.items {
-                if try await take(remote, client: client, master: master, report: &report) { report.pulled += 1 }
+                switch try await take(remote, client: client, master: master, report: &report) {
+                case .applied: report.pulled += 1
+                case .skipped: skipped += 1
+                case .none: break
+                }
+            }
+            if skipped > 0 {
+                // never store the cursor past an item that wasn't stored: the next pass pulls this page again (what
+                // landed is passed over there by take's version check), and no later page is pulled now
+                report.skipped += skipped
+                break
             }
             cursor = page.cursor
             try await library.setSyncValue("pull_cursor", cursor)
@@ -191,27 +215,36 @@ public actor SyncEngine {
         // references arrive in seq order, so a note can come before a notebook renamed after it was filed there
         let again = deferred
         deferred = []
-        for remote in again { _ = try await take(remote, client: client, master: master, report: &report, reapply: true) }
+        for remote in again {
+            if try await take(remote, client: client, master: master, report: &report, reapply: true) == .skipped { report.skipped += 1 }
+        }
     }
 
+    /// What `take` did with an item: stored it from the server, had nothing to store (or resolved a conflict),
+    /// or couldn't store it because this device kept changing it (`skipped`).
+    private enum Taken { case applied, none, skipped }
+
     /// Applies one pulled item, or resolves it against a local change. A remote write is refused when this
-    /// Mac changed the item after we looked (someone typed); then it is looked at again, up to three times.
-    private func take(_ remote: RemoteItem, client: APIClient, master: Data, report: inout SyncReport, reapply: Bool = false) async throws -> Bool {
-        guard let id = ULID(string: remote.id) else { return false }
+    /// device changed the item after we looked (someone typed); then it is looked at again, up to three times.
+    private func take(_ remote: RemoteItem, client: APIClient, master: Data, report: inout SyncReport, reapply: Bool = false) async throws -> Taken {
+        guard let id = ULID(string: remote.id) else { return .none }
         for _ in 0..<3 {
             _ = try await library.collectChanges()
             let local = try await library.syncItem(id)
             if let local, local.dirtySeq != nil {
                 // our own push coming back, with a later edit on top: the next pass pushes that edit
-                if remote.version <= local.serverVersion { return false }
-                if try await resolve(local, remote: remote, client: client, master: master, report: &report) { return false }
+                if remote.version <= local.serverVersion { return .none }
+                await testHook?("beforeResolve", id)
+                if try await resolve(local, remote: remote, client: client, master: master, report: &report) { return .none }
             } else {
-                if let local, local.serverVersion >= remote.version, !reapply { return false }   // our own push coming back
+                // our own push coming back; on a reapply the same version again is expected, but an older one (the
+                // item moved on in a later page) must never roll the copy here back
+                if let local, reapply ? local.serverVersion > remote.version : local.serverVersion >= remote.version { return .none }
                 await testHook?("beforeApply", id)
-                if try await apply(remote, client: client, master: master, deferIncomplete: !reapply) { return true }
+                if try await apply(remote, client: client, master: master, deferIncomplete: !reapply) { return .applied }
             }
         }
-        return false
+        return .skipped
     }
 
     /// Decodes a remote item. `forceBlob` downloads the body even if its sha matches the one here (needed in
@@ -388,8 +421,13 @@ public actor SyncEngine {
         do {
             let (report, changed) = try await syncOnce()
             backoff.reset()
-            lastSynced = clock()
+            if report.skipped == 0 { lastSynced = clock() }
             if !changed.isEmpty { await onPulled(changed) }
+            if report.skipped > 0 {
+                // not synced: this device kept changing an item the server changed too. Never "Synced"; again soon.
+                set(.syncing(done: 0, total: report.skipped))
+                return .seconds(2)
+            }
             set(report.readOnly ? .readOnly : report.quotaFull ? .quotaFull : .idle(lastSynced: lastSynced))
             return .seconds(300)
         } catch is CancellationError {

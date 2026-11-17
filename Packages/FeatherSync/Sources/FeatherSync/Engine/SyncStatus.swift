@@ -24,6 +24,8 @@ public struct SyncReport: Equatable, Sendable {
     public var rejected: [String: String] = [:]
     public var readOnly = false
     public var quotaFull = false
+    /// Pulled items this device couldn't store because it kept changing them: the pass didn't finish.
+    public var skipped = 0
     public init() {}
 }
 
